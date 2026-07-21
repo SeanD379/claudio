@@ -1,0 +1,147 @@
+// Claudio 数据库模型
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id              String     @id @default(cuid())
+  nickname        String?    // 用户昵称
+  customAvatarUrl String?    // 自定义头像 URL
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // 关联
+  settings    UserSetting?
+  favorites   Favorite[]
+  playlists   Playlist[]
+  chatHistory ChatHistory[]
+  playRecords PlayRecord[]
+}
+
+// 播放记录表
+model PlayRecord {
+  id       String   @id @default(cuid())
+  userId   String
+  songId   String
+  playedAt DateTime @default(now())
+  duration Int?     // 实际播放时长（秒）
+
+  user User @relation(fields: [userId], references: [id])
+  song Song @relation(fields: [songId], references: [id])
+
+  @@index([userId, playedAt])
+}
+
+// 用户设置表
+model UserSetting {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  theme            String   @default("light")  // light | dark
+  fontSize         String   @default("medium") // small | medium | large
+  language         String   @default("zh")     // zh | en
+  narrationEnabled Boolean  @default(true)     // 是否启用旁白
+  autoPlay         Boolean  @default(true)     // 开机自动播放
+  quickSwitch      Boolean  @default(false)    // 快速切歌（跳过旁白）
+  dynamicBg        Boolean  @default(true)     // 动态背景
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // 关联
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+// 歌曲表
+model Song {
+  id        String     @id @default(cuid())
+  neteaseId String     @unique  // 网易云音乐 ID
+  title     String
+  artist    String
+  album     String?
+  coverUrl  String?
+  duration  Int?       // 时长（秒）
+  createdAt DateTime   @default(now())
+
+  // 关联
+  favorites     Favorite[]
+  playlistSongs PlaylistSong[]
+  narrations    Narration[]
+  playRecords   PlayRecord[]
+}
+
+// 收藏表
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  songId    String
+  createdAt DateTime @default(now())
+
+  // 关联
+  user      User     @relation(fields: [userId], references: [id])
+  song      Song     @relation(fields: [songId], references: [id])
+
+  @@unique([userId, songId])
+}
+
+// 歌单表
+model Playlist {
+  id          String     @id @default(cuid())
+  userId      String
+  neteaseId   String?    // 网易云歌单 ID（用于同步）
+  name        String
+  description String?
+  coverUrl    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // 关联
+  user        User     @relation(fields: [userId], references: [id])
+  songs       PlaylistSong[]
+}
+
+// 歌单歌曲关联表
+model PlaylistSong {
+  id         String   @id @default(cuid())
+  playlistId String
+  songId     String
+  addedAt    DateTime @default(now())
+
+  // 关联
+  playlist   Playlist @relation(fields: [playlistId], references: [id])
+  song       Song     @relation(fields: [songId], references: [id])
+
+  @@unique([playlistId, songId])
+}
+
+// 聊天记录表
+model ChatHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // user | assistant
+  content   String
+  createdAt DateTime @default(now())
+
+  // 关联
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// 旁白表
+model Narration {
+  id        String   @id @default(cuid())
+  songId    String
+  content   String   @db.Text
+  language  String   @default("zh")  // zh | en
+  context   String?  @db.Text        // 生成时的上下文（时间、场景等）
+  createdAt DateTime @default(now())
+
+  // 关联
+  song      Song     @relation(fields: [songId], references: [id])
+
+  @@unique([songId, language])
+}

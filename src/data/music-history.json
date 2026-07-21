@@ -1,0 +1,404 @@
+{
+  "01-01": [
+    { "year": 1962, "event": "The Beatles 首次试音被 Decca Records 拒绝", "artist": "The Beatles" },
+    { "year": 1983, "event": "互联网上第一次音乐下载实验在 ARPANET 上进行", "artist": null },
+    { "year": 2000, "event": "世界卫生组织宣布噪音污染是欧洲最严重的环境问题之一", "artist": null }
+  ],
+  "01-06": [
+    { "year": 1964, "event": "The Rolling Stones 首次登上英国单曲榜 Top 10", "artist": "The Rolling Stones" },
+    { "year": 1975, "event": "Led Zeppelin 宣布重组，结束两年沉寂", "artist": "Led Zeppelin" }
+  ],
+  "01-08": [
+    { "year": 1935, "event": "摇滚乐之父 Elvis Presley 出生于密西西比州图珀洛", "artist": "Elvis Presley" },
+    { "year": 1947, "event": "David Bowie 出生于伦敦布里克斯顿", "artist": "David Bowie" }
+  ],
+  "01-10": [
+    { "year": 1949, "event": "摇滚乐先驱 Rod Stewart 出生于伦敦", "artist": "Rod Stewart" },
+    { "year": 2016, "event": "David Bowie 发行最后一张专辑《Blackstar》，两天后去世", "artist": "David Bowie" }
+  ],
+  "01-12": [
+    { "year": 1941, "event": "长号手长野太郎出生，后成为日本爵士乐传奇", "artist": null },
+    { "year": 2010, "event": "海地大地震，多位音乐人发起慈善募捐演出", "artist": null }
+  ],
+  "01-15": [
+    { "year": 1929, "event": "Martin Luther King Jr. 出生，日后成为多首民权歌曲的灵感来源", "artist": null },
+    { "year": 1967, "event": "首届超级碗中场秀举行，此后成为全球最大的音乐舞台之一", "artist": null }
+  ],
+  "01-20": [
+    { "year": 1982, "event": "Ozzy Osbourne 因在舞台上咬掉蝙蝠头部而引发争议", "artist": "Ozzy Osbourne" }
+  ],
+  "01-27": [
+    { "year": 1948, "event": "Mick Fleetwood 出生，后创立 Fleetwood Mac", "artist": "Fleetwood Mac" }
+  ],
+  "02-01": [
+    { "year": 1964, "event": "The Beatles 首次登陆美国，引发「英伦入侵」", "artist": "The Beatles" },
+    { "year": 1978, "event": "电影《Saturday Night Fever》原声带连续 24 周蝉联 Billboard 冠军", "artist": "Bee Gees" }
+  ],
+  "02-03": [
+    { "year": 1959, "event": "「音乐消亡日」— Buddy Holly、Ritchie Valens、Big Bopper 飞机失事", "artist": "Buddy Holly" },
+    { "year": 2023, "event": "Beyoncé 在格莱美上获得第 32 座奖杯，成为格莱美历史上获奖最多的艺人", "artist": "Beyoncé" }
+  ],
+  "02-06": [
+    { "year": 1945, "event": "Bob Marley 出生于牙买加圣安妮教区", "artist": "Bob Marley" }
+  ],
+  "02-09": [
+    { "year": 1964, "event": "The Beatles 首次登上《Ed Sullivan Show》，7300 万人观看", "artist": "The Beatles" }
+  ],
+  "02-14": [
+    { "year": 1970, "event": "The Who 在利兹大学演出，录制经典现场专辑《Live at Leeds》", "artist": "The Who" }
+  ],
+  "02-20": [
+    { "year": 1967, "event": "Jimi Hendrix 在伦敦 Bag O'Nails 俱乐部演出，Beatles 和 Rolling Stones 到场观看", "artist": "Jimi Hendrix" }
+  ],
+  "02-24": [
+    { "year": 1942, "event": "Paul McCartney 出生于利物浦", "artist": "The Beatles" }
+  ],
+  "03-01": [
+    { "year": 1994, "event": "Nirvana 主唱 Kurt Cobain 在家中被发现死亡，年仅 27 岁", "artist": "Nirvana" }
+  ],
+  "03-08": [
+    { "year": 1973, "event": "Pink Floyd 发行《The Dark Side of the Moon》，成为史上最畅销专辑之一", "artist": "Pink Floyd" }
+  ],
+  "03-15": [
+    { "year": 1965, "event": "The Rolling Stones 发行单曲《The Last Time》，首次登上英国榜冠军", "artist": "The Rolling Stones" }
+  ],
+  "03-18": [
+    { "year": 1967, "event": "The Beatles 开始录制《Sgt. Pepper's Lonely Hearts Club Band》", "artist": "The Beatles" }
+  ],
+  "03-25": [
+    { "year": 1967, "event": "Martin Luther King Jr. 在纽约 Riverside 教堂发表反越战演讲", "artist": null }
+  ],
+  "03-29": [
+    { "year": 1973, "event": "美国从越南撤军，大量反战歌曲成为时代之声", "artist": null }
+  ],
+  "04-01": [
+    { "year": 1984, "event": "Marvin Gaye 被父亲枪杀身亡，年仅 44 岁", "artist": "Marvin Gaye" },
+    { "year": 1976, "event": "Apple 公司由 Steve Jobs 和 Steve Wozniak 创立，日后彻底改变音乐产业", "artist": null }
+  ],
+  "04-08": [
+    { "year": 1994, "event": "Kurt Cobain 的遗体在西雅图家中被发现", "artist": "Nirvana" }
+  ],
+  "04-10": [
+    { "year": 1970, "event": "Paul McCartney 宣布离开 The Beatles，乐队正式解散", "artist": "The Beatles" }
+  ],
+  "04-15": [
+    { "year": 1912, "event": "泰坦尼克号沉没，船上乐队的英勇演奏成为永恒传说", "artist": null }
+  ],
+  "04-25": [
+    { "year": 1949, "event": "摇滚乐传奇 Ella Fitzgerald 首次在纽约 Apollo 剧院演出", "artist": "Ella Fitzgerald" }
+  ],
+  "05-01": [
+    { "year": 1967, "event": "Elvis Presley 与 Priscilla Beaulieu 在拉斯维加斯结婚", "artist": "Elvis Presley" }
+  ],
+  "05-03": [
+    { "year": 1952, "event": "第一张 45 转单曲唱片开始大规模生产，改变音乐消费方式", "artist": null }
+  ],
+  "05-08": [
+    { "year": 1970, "event": "The Beatles 发行最后一张专辑《Let It Be》", "artist": "The Beatles" }
+  ],
+  "05-14": [
+    { "year": 1948, "event": "Bob Dylan 出生于明尼苏达州德卢斯", "artist": "Bob Dylan" }
+  ],
+  "05-18": [
+    { "year": 1980, "event": "Ian Curtis，Joy Division 主唱自杀身亡，年仅 23 岁", "artist": "Joy Division" }
+  ],
+  "05-24": [
+    { "year": 1941, "event": "Bob Dylan 出生（另一说为 5 月 24 日）", "artist": "Bob Dylan" }
+  ],
+  "06-01": [
+    { "year": 1967, "event": "The Beatles 发行《Sgt. Pepper's Lonely Hearts Club Band》", "artist": "The Beatles" },
+    { "year": 1985, "event": "Michael Jackson 以 4750 万美元买下 ATV 音乐出版公司，获得 Beatles 歌曲版权", "artist": "Michael Jackson" }
+  ],
+  "06-05": [
+    { "year": 1968, "event": "Robert F. Kennedy 遇刺身亡，多首纪念歌曲随后诞生", "artist": null }
+  ],
+  "06-08": [
+    { "year": 1977, "event": "The Sex Pistols 发行《God Save the Queen》，引发朋克风暴", "artist": "Sex Pistols" }
+  ],
+  "06-14": [
+    { "year": 1946, "event": "Donald Trump 出生（后成为多首嘻哈歌曲的素材）", "artist": null }
+  ],
+  "06-18": [
+    { "year": 1942, "event": "Paul McCartney 出生于利物浦（另一说为 6 月 18 日）", "artist": "The Beatles" }
+  ],
+  "06-22": [
+    { "year": 1948, "event": "Todd Rundgren 出生，后成为前卫摇滚先驱", "artist": "Todd Rundgren" }
+  ],
+  "06-25": [
+    { "year": 2009, "event": "Michael Jackson 在洛杉矶去世，全球数十亿人哀悼", "artist": "Michael Jackson" },
+    { "year": 1967, "event": "全球首次卫星电视直播《Our World》，The Beatles 首演《All You Need Is Love》", "artist": "The Beatles" }
+  ],
+  "07-01": [
+    { "year": 1967, "event": "The Beatles 在全球卫星直播节目《Our World》上首演《All You Need Is Love》，约4亿观众收看", "artist": "The Beatles" },
+    { "year": 1979, "event": "索尼推出第一款 Walkman 随身听，开启个人便携音乐时代", "artist": null },
+    { "year": 1983, "event": "David Bowie 的专辑《Let's Dance》登顶英国专辑榜", "artist": "David Bowie" },
+    { "year": 1967, "event": "The Monkees 成为第一支在英国榜获得三连冠的美国乐队", "artist": "The Monkees" }
+  ],
+  "07-02": [
+    { "year": 1969, "event": "Rolling Stones 吉他手 Brian Jones 在泳池中溺亡，年仅27岁", "artist": "The Rolling Stones" },
+    { "year": 1971, "event": "The Doors 主唱 Jim Morrison 在巴黎公寓去世，年仅27岁", "artist": "The Doors" },
+    { "year": 1973, "event": "David Bowie 在 Hammersmith Odeon 举行最后一场 Ziggy Stardust 演出，宣布告别该角色", "artist": "David Bowie" },
+    { "year": 1969, "event": "The Rolling Stones 在海德公园举办免费演出纪念 Brian Jones，首次以五人阵容亮相", "artist": "The Rolling Stones" }
+  ],
+  "07-03": [
+    { "year": 1973, "event": "Aerosmith 发行首张同名专辑，开启硬摇滚传奇", "artist": "Aerosmith" },
+    { "year": 2003, "event": "Johnny Cash 的妻子 June Carter Cash 去世，四个月后 Cash 也随之而去", "artist": "Johnny Cash" },
+    { "year": 1971, "event": "Jim Morrison 被安葬于巴黎拉雪兹神父公墓，此后墓地成为全球乐迷朝圣地", "artist": "The Doors" }
+  ],
+  "07-04": [
+    { "year": 1969, "event": "The Rolling Stones 在海德公园举办免费演唱会，纪念去世的布莱恩·琼斯", "artist": "The Rolling Stones" },
+    { "year": 2002, "event": "Eminem 的专辑《The Eminem Show》连续第四周蝉联 Billboard 200 冠军", "artist": "Eminem" },
+    { "year": 2015, "event": "Apple Music 正式上线，开启流媒体音乐新纪元", "artist": null },
+    { "year": 1987, "event": "Guns N' Roses 发行首张专辑《Appetite for Destruction》，日后成为史上最畅销处女作", "artist": "Guns N' Roses" },
+    { "year": 1975, "event": "爵士乐先驱 Louis Jordan 去世，跳跃蓝调的奠基人，影响了 Chuck Berry 和 Little Richard", "artist": "Louis Jordan" }
+  ],
+  "07-05": [
+    { "year": 1954, "event": "Elvis Presley 在 Sun Studios 录制《That's All Right》，被视为摇滚乐诞生的标志", "artist": "Elvis Presley" },
+    { "year": 1994, "event": "Jeff Buckley 发行专辑《Grace》，被《Time》评为90年代最伟大专辑之一", "artist": "Jeff Buckley" },
+    { "year": 1943, "event": "Robbie Robertson 出生于加拿大，后成为 The Band 核心词曲作者，创作《The Weight》", "artist": "The Band" }
+  ],
+  "07-06": [
+    { "year": 1957, "event": "John Lennon 与 Paul McCartney 在利物浦 Woolton 教堂集市首次相遇，Beatles 传奇由此开始", "artist": "The Beatles" },
+    { "year": 1964, "event": "The Beatles 电影《A Hard Day's Night》在伦敦首映，开创了音乐电影的先河", "artist": "The Beatles" },
+    { "year": 1971, "event": "爵士之父 Louis Armstrong 在纽约去世，享年 69 岁。代表作《What a Wonderful World》《Hello, Dolly!》，开创了爵士即兴演奏和 Scat 唱法，被视为 20 世纪最具影响力的音乐人之一", "artist": "Louis Armstrong" }
+  ],
+  "07-07": [
+    { "year": 1971, "event": "《Ed Sullivan Show》播出最后一期，12年间披头士、猫王等巨星均从此节目走向全美", "artist": null },
+    { "year": 2005, "event": "Live8 全球同步举行，10场音乐会呼吁八国集团减免非洲债务", "artist": null },
+    { "year": 1980, "event": "Led Zeppelin 发行现场专辑《Song Remains the Same》，记录1973年麦迪逊广场花园演出", "artist": "Led Zeppelin" },
+    { "year": 1957, "event": "John Lennon 的乐队 The Quarrymen 在利物浦 Woolton 教堂集市演出，Paul McCartney 首次台下观看", "artist": "The Beatles" }
+  ],
+  "07-08": [
+    { "year": 1964, "event": "The Beatles 电影《A Hard Day's Night》在美国上映，票房大获成功", "artist": "The Beatles" },
+    { "year": 1974, "event": "Stevie Wonder 发行专辑《Fulfillingness' First Finale》，连续11周登顶 Billboard 200", "artist": "Stevie Wonder" },
+    { "year": 1956, "event": "Paramount 剧院举办首届《American Bandstand》电视直播，推动摇滚乐走向大众", "artist": null },
+    { "year": 2008, "event": "Coldplay 发达专辑《Viva la Vida or Death and All His Friends》，登顶全球多国专辑榜", "artist": "Coldplay" }
+  ],
+  "07-09": [
+    { "year": 2007, "event": "Live Earth 全球音乐会举行，横跨7大洲24小时，为气候变化议题筹款", "artist": null },
+    { "year": 1956, "event": "Dean Martin 的《That's Amore》登顶美国单曲榜", "artist": "Dean Martin" },
+    { "year": 2018, "event": "XXXTentacion 的专辑《Sad!》登顶 Billboard Hot 100，他于同年6月去世", "artist": "XXXTentacion" }
+  ],
+  "07-10": [
+    { "year": 1975, "event": "Cher 与 Gregg Allman 结婚，成为音乐界最受关注的 couple 之一", "artist": "Cher" },
+    { "year": 1965, "event": "The Who 的《My Generation》在英国榜攀升至第2位，成为朋克先驱之作", "artist": "The Who" },
+    { "year": 2015, "event": "Adele 的《25》打破 Spotify 首日串流播放纪录", "artist": "Adele" },
+    { "year": 1976, "event": "Peter Gabriel 宣布离开 Genesis 乐队，开启传奇个人生涯", "artist": "Peter Gabriel" }
+  ],
+  "07-11": [
+    { "year": 1991, "event": "Nirvana 在加州 Sound City 录音室开始录制《Nevermind》，改变摇滚乐走向", "artist": "Nirvana" },
+    { "year": 1962, "event": "Bob Dylan 在纽约 Town Hall 举办首次个人演唱会", "artist": "Bob Dylan" },
+    { "year": 2015, "event": "The Weeknd 发行《Beauty Behind the Madness》，《Can't Feel My Face》成为全球热门", "artist": "The Weeknd" }
+  ],
+  "07-12": [
+    { "year": 1962, "event": "The Rolling Stones 在伦敦 Marquee Club 进行首次正式演出", "artist": "The Rolling Stones" },
+    { "year": 2012, "event": "Beyoncé 在格拉斯顿伯里音乐节上演出，成为头条嘉宾，吸引10万观众", "artist": "Beyoncé" },
+    { "year": 2003, "event": "50 Cent 的专辑《Get Rich or Die Tryin'》连续第六周登顶 Billboard 200", "artist": "50 Cent" },
+    { "year": 1976, "event": "The Clash 在伦敦举办首场演出，开启朋克摇滚的黄金时代", "artist": "The Clash" },
+    { "year": 1990, "event": "Vanilla Ice 的《Ice Ice Baby》成为首支登顶 Hot 100 的说唱单曲", "artist": "Vanilla Ice" }
+  ],
+  "07-13": [
+    { "year": 1985, "event": "Live Aid 演唱会在伦敦 Wembley 和费城 JFK 体育场同步举行，全球190国15亿人观看", "artist": null },
+    { "year": 1973, "event": "Led Zeppelin 在纽约麦迪逊广场花园举办传奇演出，连续三晚座无虚席", "artist": "Led Zeppelin" },
+    { "year": 2006, "event": "My Chemical Romance 发行《Welcome to the Black Parade》，成为21世纪最具影响力的摇滚单曲之一", "artist": "My Chemical Romance" },
+    { "year": 1977, "event": "Elvis Presley 进行生前最后一场录音室录制，四个月后去世", "artist": "Elvis Presley" }
+  ],
+  "07-14": [
+    { "year": 1969, "event": "The Rolling Stones 发行单曲《Honky Tonk Women》，登顶英美双榜", "artist": "The Rolling Stones" },
+    { "year": 1986, "event": "Run-DMC 与 Aerosmith 合作的《Walk This Way》重混版发行，打破摇滚与嘻哈的壁垒", "artist": "Run-DMC" },
+    { "year": 2000, "event": "Radiohead 发行《Kid A》先导单曲《Idioteque》，开创实验电子摇滚新方向", "artist": "Radiohead" },
+    { "year": 2003, "event": "Beyoncé 发行首张个人专辑《Dangerously in Love》，《Crazy in Love》登顶 Hot 100", "artist": "Beyoncé" }
+  ],
+  "07-15": [
+    { "year": 1971, "event": "The Doors 发行最后一张录音室专辑《L.A. Woman》，收录同名经典曲目", "artist": "The Doors" },
+    { "year": 1965, "event": "The Beatles 电影《Help!》在伦敦首映", "artist": "The Beatles" },
+    { "year": 1997, "event": "David Bowie 与 Trent Reznor 合作的《I'm Afraid of Americans》MV 发行", "artist": "David Bowie" }
+  ],
+  "07-16": [
+    { "year": 1969, "event": "阿波罗11号升空，Elton John 的《Rocket Man》后来成为太空主题经典曲", "artist": null },
+    { "year": 1956, "event": "Elvis Presley 的《Don't Be Cruel》开始录制，后成为他的第一首冠军单曲", "artist": "Elvis Presley" },
+    { "year": 1988, "event": "Tracy Chapman 发行《Talkin' 'Bout a Revolution》，成为社会正义运动的代表曲", "artist": "Tracy Chapman" }
+  ],
+  "07-17": [
+    { "year": 1955, "event": "迪士尼乐园在加州安纳海姆开园，日后成为全球流行文化的标志", "artist": null },
+    { "year": 2017, "event": "Ed Sheeran 的《Shape of You》连续12周登顶 Billboard Hot 100", "artist": "Ed Sheeran" },
+    { "year": 1999, "event": "Ricky Martin 的《Livin' La Vida Loca》成为暑期最热门单曲", "artist": "Ricky Martin" },
+    { "year": 1968, "event": "The Beatles 前往印度学习超觉静坐，随后创作了大量经典作品", "artist": "The Beatles" }
+  ],
+  "07-18": [
+    { "year": 1967, "event": "Jimi Hendrix 在 Monterey Pop Festival 上火烧吉他，成为摇滚史上最经典的一幕", "artist": "Jimi Hendrix" },
+    { "year": 2015, "event": "One Direction 宣布无限期休团，四年后仍未回归", "artist": "One Direction" },
+    { "year": 1968, "event": "Intel 公司成立，半导体技术日后彻底改变了音乐制作与传播方式", "artist": null }
+  ],
+  "07-19": [
+    { "year": 1977, "event": "The Rolling Stones 的《Miss You》登顶美国单曲榜，融入迪斯科风格引发争议", "artist": "The Rolling Stones" },
+    { "year": 1957, "event": "摇滚杂志《The Beat》在伦敦创刊，记录早期摇滚乐场景", "artist": null },
+    { "year": 2007, "event": "Apple 发行 iPhone，日后彻底改变人们消费音乐的方式", "artist": null },
+    { "year": 1969, "event": "Janis Joplin 在新奥尔良演出时首次使用《Mercedes Benz》这首歌名", "artist": "Janis Joplin" }
+  ],
+  "07-20": [
+    { "year": 1969, "event": "阿波罗11号成功登月，David Bowie 的《Space Oddity》在此期间登上英国榜第5位", "artist": null },
+    { "year": 1999, "event": "Sugar Ray 的《Every Morning》连续三周登顶 Billboard Hot 100", "artist": "Sugar Ray" },
+    { "year": 1951, "event": "Chet Baker 出生于俄克拉荷马州，后成为酷派爵士代表人物", "artist": "Chet Baker" },
+    { "year": 2006, "event": "My Chemical Romance 发行《Welcome to the Black Parade》专辑", "artist": "My Chemical Romance" }
+  ],
+  "07-21": [
+    { "year": 1973, "event": "David Bowie 在伦敦 Hammersmith Odeon 举行告别 Ziggy Stardust 演出后正式退役该角色", "artist": "David Bowie" },
+    { "year": 2002, "event": "Eminem 的《Lose Yourself》获格莱美最佳说唱歌曲奖", "artist": "Eminem" },
+    { "year": 2011, "event": "Lady Gaga 的《Born This Way》连续五周登顶 Billboard Hot 100", "artist": "Lady Gaga" }
+  ],
+  "07-22": [
+    { "year": 1991, "event": "Wilson Phillips 的《Hold On》连续三周登顶 Billboard Hot 100", "artist": "Wilson Phillips" },
+    { "year": 1993, "event": "Guns N' Roses 发行《The Spaghetti Incident?》，翻唱朋克经典，乐队最后的录音室专辑", "artist": "Guns N' Roses" },
+    { "year": 1964, "event": "The Beatles 的《A Hard Day's Night》电影原声带在美发行，首周即登顶 Billboard 200", "artist": "The Beatles" },
+    { "year": 1982, "event": "Van Halen 的《Jump》连续5周登顶 Hot 100，成为乐队唯一冠军单曲", "artist": "Van Halen" }
+  ],
+  "07-23": [
+    { "year": 1964, "event": "The Beatles 专辑《A Hard Day's Night》在美国发行，横扫Billboard 200前5名", "artist": "The Beatles" },
+    { "year": 1990, "event": "MC Hammer 的《U Can't Touch This》连续4周登顶 Hot 100，开创说唱主流化先河", "artist": "MC Hammer" },
+    { "year": 2001, "event": "Destiny's Child 发行《Survivor》，同名单曲登顶多国榜单", "artist": "Destiny's Child" }
+  ],
+  "07-24": [
+    { "year": 1969, "event": "Jimi Hendrix 在加州 Newport Pop Festival 上演出，成为该音乐节的最大亮点", "artist": "Jimi Hendrix" },
+    { "year": 1977, "event": "Elvis Presley 在孟菲斯进行最后一场录音室录制", "artist": "Elvis Presley" },
+    { "year": 2013, "event": "Daft Punk 的《Get Lucky》连续10周登顶 UK 单曲榜", "artist": "Daft Punk" }
+  ],
+  "07-25": [
+    { "year": 1965, "event": "Bob Dylan 在 Newport Folk Festival 上用电吉他演出，观众喝倒彩，音乐史从此改变", "artist": "Bob Dylan" },
+    { "year": 2000, "event": "《碟中谍2》电影原声带登顶 Billboard 200，Limp Bizkit 等乐队参演", "artist": null },
+    { "year": 2006, "event": "Kanye West 的《Touch the Sky》MV 获 MTV 音乐录影带大奖提名", "artist": "Kanye West" },
+    { "year": 2003, "event": "OutKast 的《Hey Ya!》连续7周登顶 Hot 100，成为年度最热单曲", "artist": "OutKast" }
+  ],
+  "07-26": [
+    { "year": 1943, "event": "Mick Jagger 出生于英国达特福德，后成为 Rolling Stones 主唱", "artist": "The Rolling Stones" },
+    { "year": 1956, "event": "Elvis Presley 的《Hound Dog》/《Don't Be Cruel》单曲发行，横扫全美", "artist": "Elvis Presley" },
+    { "year": 2003, "event": "Beyoncé 发行首张个人专辑《Dangerously in Love》，《Crazy in Love》登顶 Hot 100", "artist": "Beyoncé" },
+    { "year": 1965, "event": "The Who 发行《My Generation》专辑，成为朋克摇滚的先驱之作", "artist": "The Who" }
+  ],
+  "07-27": [
+    { "year": 1983, "event": "Def Leppard 的《Pyromania》专辑登顶 Billboard 200，销量突破千万", "artist": "Def Leppard" },
+    { "year": 1973, "event": "电影《The Sting》原声带登顶专辑榜，Scott Joplin 的拉格泰姆钢琴曲重新走红", "artist": null },
+    { "year": 2005, "event": "Gorillaz 发行《Feel Good Inc.》，虚拟乐队首次登顶 UK 单曲榜", "artist": "Gorillaz" },
+    { "year": 1969, "event": "Led Zeppelin 在美国发行首张专辑《Led Zeppelin》，定义了硬摇滚的未来", "artist": "Led Zeppelin" }
+  ],
+  "07-28": [
+    { "year": 1973, "event": "Aerosmith 发行首张同名专辑，开启硬摇滚传奇", "artist": "Aerosmith" },
+    { "year": 2015, "event": "One Direction 发行《Drag Me Down》，首周即空降全球多国冠军", "artist": "One Direction" },
+    { "year": 2005, "event": "Green Day 的《Holiday》连续5周登顶 Alternative Songs 榜", "artist": "Green Day" }
+  ],
+  "07-29": [
+    { "year": 1974, "event": "Stevie Wonder 发行《Fulfillingness' First Finale》，连续11周登顶 Billboard 200", "artist": "Stevie Wonder" },
+    { "year": 1968, "event": "The Beatles 在 Abbey Road 录音室录制《Hey Jude》，Paul McCartney 首次即兴演唱长达5分钟的副歌", "artist": "The Beatles" },
+    { "year": 2019, "event": "Lil Nas X 的《Old Town Road》连续19周登顶 Hot 100，打破历史纪录", "artist": "Lil Nas X" },
+    { "year": 2000, "event": "Eminem 的《The Real Slim Shady》连续5周登顶 Hot 100", "artist": "Eminem" }
+  ],
+  "07-30": [
+    { "year": 1971, "event": "The Doors 在洛杉矶 Whisky a Go Go 进行最后一场演出", "artist": "The Doors" },
+    { "year": 1966, "event": "The Beatles 在美国发行《Yesterday》单曲，连续4周登顶 Hot 100", "artist": "The Beatles" },
+    { "year": 2007, "event": "The White Stripes 的《Icky Thump》连续3周登顶 UK 单曲榜", "artist": "The White Stripes" },
+    { "year": 1958, "event": "Bill Haley 的《Rock Around the Clock》连续8周登顶 Billboard Hot 100，开启摇滚时代", "artist": "Bill Haley" }
+  ],
+  "07-31": [
+    { "year": 1965, "event": "The Beatles 在英国发行《Help!》单曲，连续3周登顶 UK 榜", "artist": "The Beatles" },
+    { "year": 1973, "event": "The Rolling Stones 发行《Star Star》，收录于《Goats Head Soup》专辑", "artist": "The Rolling Stones" },
+    { "year": 2006, "event": "Shakira 的《Hips Don't Lie》连续2周登顶 Billboard Hot 100", "artist": "Shakira" },
+    { "year": 1988, "event": "Natalie Cole 的《Pink Cadillac》连续4周登顶成人当代榜", "artist": "Natalie Cole" }
+  ],
+  "08-01": [
+    { "year": 1981, "event": "MTV 开播，第一支播出的音乐录影带是 The Buggles 的《Video Killed the Radio Star》", "artist": "The Buggles" }
+  ],
+  "08-06": [
+    { "year": 1926, "event": "Andy Warhol 出生，日后深刻影响了摇滚乐的视觉艺术", "artist": null }
+  ],
+  "08-12": [
+    { "year": 1964, "event": "Ian Fleming 去世，他笔下的 James Bond 系列催生了无数经典主题曲", "artist": null }
+  ],
+  "08-15": [
+    { "year": 1969, "event": "Woodstock 音乐节开幕，40 万人涌入纽约贝塞尔", "artist": null },
+    { "year": 1977, "event": "Elvis Presley 在孟菲斯 Graceland 去世，享年 42 岁", "artist": "Elvis Presley" }
+  ],
+  "08-16": [
+    { "year": 1977, "event": "Elvis Presley 去世的消息传遍全球", "artist": "Elvis Presley" }
+  ],
+  "08-25": [
+    { "year": 1970, "event": "Jimi Hendrix 在伦敦 Isle of Wight Festival 上演出", "artist": "Jimi Hendrix" }
+  ],
+  "08-29": [
+    { "year": 1958, "event": "Michael Jackson 出生于印第安纳州加里市", "artist": "Michael Jackson" }
+  ],
+  "09-01": [
+    { "year": 1977, "event": "Led Zeppelin 发行专辑《Presence》", "artist": "Led Zeppelin" }
+  ],
+  "09-09": [
+    { "year": 1960, "event": "Buddy Holly 去世一年后，Don McLean 创作《American Pie》纪念他", "artist": "Don McLean" }
+  ],
+  "09-13": [
+    { "year": 1996, "event": "Tupac Shakur 在拉斯维加斯去世，年仅 25 岁", "artist": "Tupac Shakur" }
+  ],
+  "09-18": [
+    { "year": 1970, "event": "Jimi Hendrix 在伦敦去世，年仅 27 岁", "artist": "Jimi Hendrix" }
+  ],
+  "09-25": [
+    { "year": 1980, "event": "Led Zeppelin 鼓手 John Bonham 去世，乐队随后解散", "artist": "Led Zeppelin" }
+  ],
+  "10-01": [
+    { "year": 1962, "event": "The Beatles 发行首张单曲《Love Me Do》", "artist": "The Beatles" }
+  ],
+  "10-05": [
+    { "year": 1962, "event": "The Beatles 首张单曲《Love Me Do》在英国发行", "artist": "The Beatles" }
+  ],
+  "10-09": [
+    { "year": 1940, "event": "John Lennon 出生于利物浦", "artist": "The Beatles" },
+    { "year": 2006, "event": "Google 以 16.5 亿美元收购 YouTube，彻底改变音乐传播方式", "artist": null }
+  ],
+  "10-17": [
+    { "year": 1967, "event": "电影《The Jungle Book》上映，其中歌曲成为迪士尼经典", "artist": null }
+  ],
+  "10-21": [
+    { "year": 2015, "event": "Adele 发行《25》，首周在美国卖出 338 万张", "artist": "Adele" }
+  ],
+  "10-25": [
+    { "year": 1964, "event": "The Rolling Stones 首次登上美国电视节目", "artist": "The Rolling Stones" }
+  ],
+  "11-01": [
+    { "year": 1968, "event": "Led Zeppelin 首次以 Led Zeppelin 之名演出", "artist": "Led Zeppelin" }
+  ],
+  "11-09": [
+    { "year": 1967, "event": "The Beatles 完成《Magical Mystery Tour》专辑的录制", "artist": "The Beatles" }
+  ],
+  "11-15": [
+    { "year": 1965, "event": "The Who 发行《My Generation》", "artist": "The Who" }
+  ],
+  "11-18": [
+    { "year": 1968, "event": "Jimi Hendrix 发行《Electric Ladyland》", "artist": "Jimi Hendrix" }
+  ],
+  "11-22": [
+    { "year": 1963, "event": "John F. Kennedy 遇刺，The Beatles 的美国之旅因此推迟", "artist": null }
+  ],
+  "11-25": [
+    { "year": 1969, "event": "John Lennon 归还大英帝国勋章，抗议英国支持越战", "artist": "The Beatles" }
+  ],
+  "12-01": [
+    { "year": 1955, "event": "Rosa Parks 拒绝让座，引发蒙哥马利公交抵制运动，多首民权歌曲诞生", "artist": null }
+  ],
+  "12-08": [
+    { "year": 1980, "event": "John Lennon 在纽约寓所前被枪杀身亡", "artist": "The Beatles" },
+    { "year": 1943, "event": "Jim Morrison 出生于佛罗里达州墨尔本", "artist": "The Doors" }
+  ],
+  "12-10": [
+    { "year": 1967, "event": "Otis Redding 在飞机失事中去世，年仅 26 岁", "artist": "Otis Redding" }
+  ],
+  "12-14": [
+    { "year": 1963, "event": "Dinah Washington 去世，享年 39 岁", "artist": "Dinah Washington" }
+  ],
+  "12-20": [
+    { "year": 1967, "event": "《The Graduate》原声带中的《Mrs. Robinson》开始走红", "artist": "Simon & Garfunkel" }
+  ],
+  "12-25": [
+    { "year": 1954, "event": "Bing Crosby 的《White Christmas》成为史上最畅销单曲", "artist": "Bing Crosby" },
+    { "year": 1977, "event": "Charlie Chaplin 去世，他对音乐和电影的影响永存", "artist": null }
+  ],
+  "12-31": [
+    { "year": 1969, "event": "Jimi Hendrix 在纽约 Fillmore East 迎来 70 年代", "artist": "Jimi Hendrix" }
+  ]
+}

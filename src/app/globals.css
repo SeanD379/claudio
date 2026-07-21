@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* ===== Design Tokens ===== */
+
+:root {
+  /* Dark mode (default — "Aurora Night") */
+  --canvas: #080a0f;
+  --surface: rgba(15, 18, 28, 0.85);
+  --surface-elevated: rgba(22, 26, 40, 0.9);
+  --surface-glow: rgba(30, 35, 55, 0.95);
+  --overlay: rgba(8, 10, 15, 0.92);
+
+  --accent: #7c6aef;
+  --accent-hover: #9585ff;
+  --accent-glow: rgba(124, 106, 239, 0.2);
+  --accent-secondary: #5b8def;
+  --accent-warm: #c084fc;
+
+  --text-primary: #e8eaef;
+  --text-secondary: #8b92a5;
+  --text-muted: #5c6378;
+  --text-on-accent: #ffffff;
+
+  --border: rgba(255, 255, 255, 0.06);
+  --border-active: rgba(124, 106, 239, 0.4);
+  --divider: rgba(255, 255, 255, 0.04);
+
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+}
+
+[data-theme="light"] {
+  /* Light mode ("Liquid Glass" — iOS 26 style) */
+  --canvas: #E8EAF0;
+  --surface: rgba(0, 0, 0, 0.2);
+  --surface-elevated: rgba(0, 0, 0, 0.1);
+  --surface-glow: rgba(0, 0, 0, 0.06);
+  --overlay: rgba(232, 234, 240, 0.92);
+
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-glow: rgba(96, 165, 250, 0.2);
+  --accent-secondary: #818cf8;
+  --accent-warm: #a78bfa;
+
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.85);
+  --text-muted: rgba(255, 255, 255, 0.65);
+  --text-on-accent: #ffffff;
+
+  --border: rgba(255, 255, 255, 0.15);
+  --border-active: rgba(96, 165, 250, 0.4);
+  --divider: rgba(255, 255, 255, 0.08);
+}
+
+/* Tailwind 4 theme integration */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-glow: var(--surface-glow);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-glow: var(--accent-glow);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-on-accent: var(--text-on-accent);
+  --color-border-custom: var(--border);
+  --color-border-active: var(--border-active);
+  --font-display: var(--font-display);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Font size settings */
+:root {
+  --text-scale: 1;
+}
+
+.text-xs { font-size: calc(0.75rem * var(--text-scale)) !important; }
+.text-sm { font-size: calc(0.875rem * var(--text-scale)) !important; }
+.text-base { font-size: calc(1rem * var(--text-scale)) !important; }
+.text-lg { font-size: calc(1.125rem * var(--text-scale)) !important; }
+.text-xl { font-size: calc(1.25rem * var(--text-scale)) !important; }
+.text-2xl { font-size: calc(1.5rem * var(--text-scale)) !important; }
+.text-3xl { font-size: calc(1.875rem * var(--text-scale)) !important; }
+.text-4xl { font-size: calc(2.25rem * var(--text-scale)) !important; }
+.text-5xl { font-size: calc(3rem * var(--text-scale)) !important; }
+
+/* Custom scrollbar — warm tones */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--text-muted);
+  border-radius: 20px;
+  opacity: 0.5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
+}
+
+/* Progress bar */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Animations */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Music playing indicator bars */
+@keyframes music-bar-1 {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+@keyframes music-bar-2 {
+  0%, 100% { height: 8px; }
+  50% { height: 12px; }
+}
+
+@keyframes music-bar-3 {
+  0%, 100% { height: 12px; }
+  50% { height: 4px; }
+}
+
+.animate-music-bar-1 {
+  animation: music-bar-1 0.8s ease-in-out infinite;
+}
+
+.animate-music-bar-2 {
+  animation: music-bar-2 0.6s ease-in-out infinite 0.2s;
+}
+
+.animate-music-bar-3 {
+  animation: music-bar-3 0.7s ease-in-out infinite 0.4s;
+}
+
+/* Clock colon pulse — slower, warm */
+@keyframes colon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-colon-pulse {
+  animation: colon-pulse 2s ease-in-out infinite;
+}
+
+/* Film grain texture overlay */
+.surface-grain {
+  position: relative;
+}
+
+.surface-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+/* Album art bleed transition */
+@keyframes album-bleed-transition {
+  from { opacity: 0; }
+  to { opacity: 0.3; }
+}
+
+/* Toast entrance/exit animations */
+@keyframes toast-enter {
+  from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+}
+.animate-toast-enter {
+  animation: toast-enter 0.3s cubic-bezier(0.25,0.1,0.25,1) forwards;
+}
+.animate-toast-exit {
+  animation: toast-exit 0.2s ease-in forwards;
+}
+
+/* Calendar horizontal scroll animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
