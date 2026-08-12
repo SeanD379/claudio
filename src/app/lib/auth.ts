@@ -1,21 +1,11 @@
-import { readFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { hasUserToken } from "./netease-token";
 
 /**
  * 检查用户是否已登录网易云音乐
- * 通过检查 .netease-cookie 文件是否存在
+ * 通过检查 token 中的用户 token 是否存在
  */
-export function isUserLoggedIn(): boolean {
-  try {
-    const cookiePath = resolve(process.cwd(), ".netease-cookie");
-    if (!existsSync(cookiePath)) {
-      return false;
-    }
-    const cookie = readFileSync(cookiePath, "utf-8").trim();
-    return cookie.length > 0;
-  } catch {
-    return false;
-  }
+export async function isUserLoggedIn(): Promise<boolean> {
+  return hasUserToken();
 }
 
 /**

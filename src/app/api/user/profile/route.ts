@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/db";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { resolve, join } from "path";
+import { getUserProfile, hasUserToken } from "@/app/lib/netease-token";
 
 const userId = "default-user";
 
@@ -15,28 +14,12 @@ export async function GET() {
 
     // 尝试获取网易云用户信息
     let neteaseProfile = null;
-    try {
-      const cookiePath = resolve(process.cwd(), ".netease-cookie");
-      if (existsSync(cookiePath)) {
-        const cookie = readFileSync(cookiePath, "utf-8").trim();
-        if (cookie) {
-          const { getMusicConfig } = await import("@/app/lib/music");
-          const config = getMusicConfig();
-          const res = await fetch(
-            `${config.apiUrl}/login/status?cookie=${encodeURIComponent(cookie)}`
-          );
-          const data = await res.json();
-          if (data?.data?.profile) {
-            neteaseProfile = {
-              nickname: data.data.profile.nickname,
-              avatarUrl: data.data.profile.avatarUrl,
-              userId: data.data.profile.userId,
-            };
-          }
-        }
+    if (await hasUserToken()) {
+      try {
+        neteaseProfile = await getUserProfile();
+      } catch (err) {
+        console.log("Failed to fetch netease profile:", err);
       }
-    } catch (err) {
-      console.log("Failed to fetch netease profile:", err);
     }
 
     return NextResponse.json({

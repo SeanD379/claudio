@@ -145,3 +145,15 @@ model Narration {
 
   @@unique([songId, language])
 }
+
+// Token 存储表（替代文件存储，支持无服务器环境）
+model TokenStore {
+  id                    String   @id @default("default")
+  accessToken          String
+  refreshToken         String
+  expireAt             DateTime
+  anonymousAccessToken String?
+  anonymousExpireAt    DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}

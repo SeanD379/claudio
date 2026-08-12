@@ -31,7 +31,7 @@ export default function Home() {
   const { mode, showHall, setShowHall } = useMode();
   const { playAllSongs } = usePlaylists();
   const analyzerInit = useRef(false);
-  const { isLoggedIn, isLoading, showLoginModal } = useAuthContext();
+  const { isLoggedIn, isLoading, showLoginModal, checkAuth } = useAuthContext();
 
   // KTV 点歌/队列面板状态
   const [songSelectOpen, setSongSelectOpen] = useState(false);
@@ -164,6 +164,16 @@ export default function Home() {
 
   // 首次加载时，如果未登录则自动弹出登录弹窗（仅弹出一次）
   useEffect(() => {
+    // 检查 OAuth 回调成功标记
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("login") === "success") {
+      // OAuth 登录成功，刷新登录状态
+      checkAuth();
+      // 清除 URL 参数
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
+
     if (!isLoading && !isLoggedIn) {
       // 检查是否已经弹出过登录弹窗
       const hasShownLogin = sessionStorage.getItem("claudio-login-modal-shown");

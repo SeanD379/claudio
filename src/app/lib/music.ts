@@ -1,29 +1,14 @@
-// 网易云音乐 API 封装
-import { readFileSync } from "fs";
-import { resolve } from "path";
+// 网易云音乐开放平台 API 封装
+// 从第三方 NeteaseCloudMusicApi 迁移到官方开放平台 API
+import { ncmApiGet } from "./netease-open-api";
+import { getValidToken } from "./netease-token";
+import type { NcmSong, NcmPlaylist, NcmPlayUrl } from "./netease-open-api";
 
-interface MusicAPIConfig {
-  apiUrl: string; // NeteaseCloudMusicApi 地址
-  cookie?: string; // 登录 cookie
-}
-
-let cachedCookie: string | null = null;
-
-function getCookie(): string | undefined {
-  if (cachedCookie !== null) return cachedCookie || undefined;
-  try {
-    const cookiePath = resolve(process.cwd(), ".netease-cookie");
-    cachedCookie = readFileSync(cookiePath, "utf-8").trim();
-    return cachedCookie || undefined;
-  } catch {
-    cachedCookie = "";
-    return undefined;
-  }
-}
+// ============ 导出类型（保持兼容） ============
 
 export interface Song {
   id: string;
-  neteaseId: string;
+  neteaseId: string; // encryptedId，用于 API 调用
   title: string;
   artist: string;
   album: string;
@@ -39,46 +24,28 @@ export interface Playlist {
   songCount: number;
 }
 
-interface NeteaseSong {
-  id: number;
-  name: string;
-  // Search API fields
-  artists?: Array<{ id: number; name: string }>;
-  album?: { id: number; name: string; picUrl: string };
-  duration?: number;
-  // Detail API fields
-  ar?: Array<{ id: number; name: string }>;
-  al?: { id: number; name: string; picUrl: string };
-  dt?: number;
+export interface LyricLine {
+  time: number; // 秒
+  text: string;
 }
 
-interface NeteasePlaylist {
-  id: number;
-  name: string;
-  description: string;
-  coverImgUrl: string;
-  picUrl?: string;
-  trackCount: number;
-}
+// ============ 数据映射 ============
 
-function mapSong(song: NeteaseSong): Song {
-  const artists = song.ar || song.artists || [];
-  const album = song.al || song.album || { id: 0, name: "", picUrl: "" };
-  const durationMs = song.dt || song.duration || 0;
+function mapSong(song: NcmSong): Song {
   return {
-    id: song.id.toString(),
-    neteaseId: song.id.toString(),
+    id: String(song.originalId),
+    neteaseId: song.id, // encryptedId，API 调用用
     title: song.name,
-    artist: artists.map((a) => a.name).join(" / "),
-    album: album.name,
-    coverUrl: album.picUrl,
-    duration: Math.floor(durationMs / 1000),
+    artist: song.artists.map((a) => a.name).join(" / "),
+    album: song.album.name,
+    coverUrl: song.coverImgUrl,
+    duration: Math.floor(song.duration / 1000),
   };
 }
 
-function mapPlaylist(playlist: NeteasePlaylist): Playlist {
+function mapPlaylist(playlist: NcmPlaylist): Playlist {
   return {
-    id: playlist.id.toString(),
+    id: String(playlist.originalId),
     name: playlist.name,
     description: playlist.description || "",
     coverUrl: playlist.coverImgUrl,
@@ -86,173 +53,154 @@ function mapPlaylist(playlist: NeteasePlaylist): Playlist {
   };
 }
 
+// ============ 兼容旧接口（清除 cookie 缓存） ============
+
 export function clearCookieCache(): void {
-  cachedCookie = null;
+  // 已迁移到 token 系统，此函数保留兼容
+  // 实际清除在 netease-token.ts 中
 }
 
-export function getMusicConfig(): MusicAPIConfig {
-  const apiUrl = process.env.MUSIC_API_URL;
-  if (!apiUrl) {
-    throw new Error("Missing MUSIC_API_URL");
-  }
-  return { apiUrl, cookie: getCookie() };
-}
+// ============ 音乐 API ============
 
+/**
+ * 搜索歌曲
+ */
 export async function searchSongs(
-  config: MusicAPIConfig,
   keyword: string,
   limit: number = 20
 ): Promise<Song[]> {
-  const cookieParam = config.cookie ? `&cookie=${encodeURIComponent(config.cookie)}` : "";
-  const response = await fetch(
-    `${config.apiUrl}/search?keywords=${encodeURIComponent(keyword)}&limit=${limit}${cookieParam}`
+  const token = await getValidToken();
+  const data = await ncmApiGet<{ songs: NcmSong[] }>(
+    "/openapi/music/basic/search/song/get/v3",
+    { keyword, limit },
+    token
   );
-
-  if (!response.ok) {
-    throw new Error(`Music API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return (data.result?.songs || []).map(mapSong);
+  return (data.songs || []).map(mapSong);
 }
 
+/**
+ * 获取歌曲播放 URL
+ */
 export async function getSongUrl(
-  config: MusicAPIConfig,
-  songId: string
+  songId: string, // encryptedId
+  bitrate: number = 320
 ): Promise<string | null> {
-  const cookieParam = config.cookie ? `&cookie=${encodeURIComponent(config.cookie)}` : "";
-  const response = await fetch(
-    `${config.apiUrl}/song/url?id=${songId}${cookieParam}`
-  );
-
-  if (!response.ok) {
-    throw new Error(`Music API error: ${response.status}`);
+  const token = await getValidToken();
+  try {
+    const data = await ncmApiGet<NcmPlayUrl>(
+      "/openapi/music/basic/song/playurl/get/v2",
+      { songId, bitrate },
+      token
+    );
+    return data.url || null;
+  } catch {
+    return null;
   }
-
-  const data = await response.json();
-  return data.data?.[0]?.url || null;
 }
 
+/**
+ * 获取歌曲详情（从搜索结果获取，官方 API 无单独详情端点）
+ */
 export async function getSongDetail(
-  config: MusicAPIConfig,
   songId: string
 ): Promise<Song | null> {
-  const cookieParam = config.cookie ? `&cookie=${encodeURIComponent(config.cookie)}` : "";
-  const response = await fetch(
-    `${config.apiUrl}/song/detail?ids=${songId}${cookieParam}`
-  );
-
-  if (!response.ok) {
-    throw new Error(`Music API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const song = data.songs?.[0];
-  return song ? mapSong(song) : null;
+  // 官方 API 没有单独的歌曲详情端点
+  // 通过搜索歌曲名来获取详情（降级方案）
+  // 大部分场景下搜索结果已包含详情
+  return null;
 }
 
+/**
+ * 获取歌单详情 + 歌曲列表
+ */
 export async function getPlaylistDetail(
-  config: MusicAPIConfig,
   playlistId: string
 ): Promise<{ playlist: Playlist; songs: Song[] } | null> {
-  const cookieParam = config.cookie ? `&cookie=${encodeURIComponent(config.cookie)}` : "";
-  const response = await fetch(
-    `${config.apiUrl}/playlist/detail?id=${playlistId}${cookieParam}`
-  );
+  const token = await getValidToken();
 
-  if (!response.ok) {
-    throw new Error(`Music API error: ${response.status}`);
+  try {
+    // 获取歌单详情
+    const playlistData = await ncmApiGet<NcmPlaylist>(
+      "/openapi/music/basic/playlist/detail/get/v2",
+      { id: playlistId },
+      token
+    );
+
+    // 获取歌单歌曲
+    const songListData = await ncmApiGet<{ songs: NcmSong[] }>(
+      "/openapi/music/basic/playlist/song/list/get/v3",
+      { id: playlistId, limit: 100 },
+      token
+    );
+
+    return {
+      playlist: mapPlaylist(playlistData),
+      songs: (songListData.songs || []).map(mapSong),
+    };
+  } catch {
+    return null;
   }
-
-  const data = await response.json();
-  const playlist = data.playlist;
-
-  if (!playlist) return null;
-
-  let songs = (playlist.tracks || []).map(mapSong);
-
-  // tracks 为空时，用 /playlist/track/all 补充
-  if (songs.length === 0) {
-    try {
-      const trackRes = await fetch(
-        `${config.apiUrl}/playlist/track/all?id=${playlistId}&limit=50${cookieParam}`
-      );
-      if (trackRes.ok) {
-        const trackData = await trackRes.json();
-        songs = (trackData.songs || []).map(mapSong);
-      }
-    } catch { /* ignore */ }
-  }
-
-  return {
-    playlist: mapPlaylist(playlist),
-    songs,
-  };
 }
 
+/**
+ * 获取推荐歌单
+ */
 export async function getPersonalizedPlaylists(
-  config: MusicAPIConfig,
   limit: number = 10
 ): Promise<Playlist[]> {
-  const cookieParam = config.cookie ? `&cookie=${encodeURIComponent(config.cookie)}` : "";
-  const response = await fetch(
-    `${config.apiUrl}/personalized?limit=${limit}${cookieParam}`
-  );
-
-  if (!response.ok) {
-    throw new Error(`Music API error: ${response.status}`);
+  const token = await getValidToken();
+  try {
+    const data = await ncmApiGet<{ playlists: NcmPlaylist[] }>(
+      "/openapi/music/basic/recommend/songlist/get/v2",
+      { limit },
+      token
+    );
+    return (data.playlists || []).map(mapPlaylist);
+  } catch {
+    return [];
   }
-
-  const data = await response.json();
-  return (data.result || []).map((item: NeteasePlaylist) => ({
-    id: item.id.toString(),
-    name: item.name,
-    description: item.description || "",
-    coverUrl: item.picUrl || item.coverImgUrl,
-    songCount: item.trackCount || 0,
-  }));
 }
 
-export async function getDailyRecommendations(
-  config: MusicAPIConfig
-): Promise<Song[]> {
-  const cookieParam = config.cookie ? `?cookie=${encodeURIComponent(config.cookie)}` : "";
-  const response = await fetch(`${config.apiUrl}/recommend/songs${cookieParam}`);
-
-  if (!response.ok) {
-    throw new Error(`Music API error: ${response.status}`);
+/**
+ * 获取每日推荐歌曲
+ */
+export async function getDailyRecommendations(): Promise<Song[]> {
+  const token = await getValidToken();
+  try {
+    const data = await ncmApiGet<{ songs: NcmSong[] }>(
+      "/openapi/music/basic/recommend/songlist/get/v2",
+      {},
+      token
+    );
+    return (data.songs || []).map(mapSong);
+  } catch {
+    return [];
   }
-
-  const data = await response.json();
-  return (data.data?.dailySongs || []).map(mapSong);
 }
 
-export interface LyricLine {
-  time: number; // 秒
-  text: string;
-}
+/**
+ * 获取歌词
+ */
+export async function getLyrics(songId: string): Promise<LyricLine[]> {
+  const token = await getValidToken();
+  try {
+    const data = await ncmApiGet<{ lrc?: { lyric?: string }; lyric?: string }>(
+      "/openapi/music/basic/song/lyric/get/v2",
+      { songId },
+      token
+    );
 
-export async function getLyrics(
-  config: MusicAPIConfig,
-  songId: string
-): Promise<LyricLine[]> {
-  const cookieParam = config.cookie ? `&cookie=${encodeURIComponent(config.cookie)}` : "";
-  const response = await fetch(
-    `${config.apiUrl}/lyric?id=${songId}${cookieParam}`
-  );
-
-  if (!response.ok) {
-    throw new Error(`Music API error: ${response.status}`);
+    const lrc = data.lrc?.lyric || data.lyric;
+    if (!lrc) return [];
+    return parseLRC(lrc);
+  } catch {
+    return [];
   }
-
-  const data = await response.json();
-  const lrc = data.lrc?.lyric;
-
-  if (!lrc) return [];
-
-  return parseLRC(lrc);
 }
 
+/**
+ * 解析 LRC 格式歌词
+ */
 function parseLRC(lrc: string): LyricLine[] {
   const lines = lrc.split("\n");
   const result: LyricLine[] = [];

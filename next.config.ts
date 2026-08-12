@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
       { protocol: "https" as const, hostname: "p4.music.126.net" },
     ],
   },
+  // Netlify 适配器配置
+  output: "standalone",
 };
 
 export default nextConfig;

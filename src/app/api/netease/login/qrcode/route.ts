@@ -1,42 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFileSync } from "fs";
-import { resolve } from "path";
-import { clearCookieCache } from "@/app/lib/music";
+import { getQrCode, checkQrCodeStatus } from "@/app/lib/netease-token";
+
+/**
+ * 解析短链接，获取最终的长链接
+ * 官方 API 可能返回短链接（如 https://163cn.tv/xxx），需要解析后才能正确生成二维码
+ */
+async function resolveUrl(url: string): Promise<string> {
+  // 如果不是短链接（包含/music 或 /discover 等路径），直接返回
+  if (url.includes("music.163.com") || url.includes("y.qq.com")) {
+    return url;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    const finalUrl = response.url;
+    console.log("[QR] Resolved URL:", url, "->", finalUrl);
+    return finalUrl;
+  } catch (error) {
+    console.warn("[QR] Failed to resolve URL:", url, "- using original");
+    return url;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get("action");
 
-    const apiUrl = process.env.MUSIC_API_URL;
-    if (!apiUrl) {
-      return NextResponse.json(
-        { error: "音乐服务未配置" },
-        { status: 500 }
-      );
-    }
-
     if (action === "generate") {
-      const keyRes = await fetch(`${apiUrl}/login/qr/key`);
-      const keyData = await keyRes.json();
-      const unikey = keyData.data?.unikey;
+      const data = await getQrCode();
+      console.log("[QR] Generated QR code URL:", data.qrCodeUrl, "uniKey:", data.uniKey);
 
-      if (!unikey) {
-        console.error("QR key response:", JSON.stringify(keyData));
-        return NextResponse.json(
-          { error: "生成二维码失败" },
-          { status: 500 }
-        );
-      }
+      // 解析短链接，确保二维码内容是完整的 URL
+      const resolvedUrl = await resolveUrl(data.qrCodeUrl);
 
-      const qrRes = await fetch(
-        `${apiUrl}/login/qr/create?key=${encodeURIComponent(unikey)}&qrimg=true`
-      );
-      const qrData = await qrRes.json();
-
+      // 使用免费 QR 码图片 API 生成二维码
+      const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(resolvedUrl)}`;
       return NextResponse.json({
-        key: unikey,
-        qrImg: qrData.data?.qrimg || null,
+        key: data.uniKey,
+        qrImg,
+        originalUrl: data.qrCodeUrl,
+        resolvedUrl,
       });
     }
 
@@ -49,30 +57,19 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const checkRes = await fetch(
-        `${apiUrl}/login/qr/check?key=${encodeURIComponent(key)}`
-      );
-      const checkData = await checkRes.json();
-      console.log("QR check raw response:", JSON.stringify(checkData));
+      const result = await checkQrCodeStatus(key);
 
-      // 网易云API返回格式: {code: 200, data: {code: 800-803, cookie?: "..."}}
-      // 也可能直接返回: {code: 800-803, cookie?: "..."}
-      const qrStatus = checkData.data?.code ?? checkData.code;
-      const cookie = checkData.data?.cookie ?? checkData.cookie;
-      console.log("QR status:", qrStatus, "has cookie:", !!cookie);
+      // 映射状态码以保持前端兼容
+      const statusCodeMap: Record<string, number> = {
+        expired: 800,
+        waiting: 801,
+        scanned: 802,
+        confirmed: 803,
+      };
 
-      // code: 800=过期, 801=等待扫码, 802=已扫码等待确认, 803=成功
-      if (qrStatus === 803 && cookie) {
-        // 保存 cookie，立刻返回，不等 profile
-        const cookiePath = resolve(process.cwd(), ".netease-cookie");
-        writeFileSync(cookiePath, cookie, "utf-8");
-        clearCookieCache();
-        console.log("QR login success, cookie saved");
+      const code = statusCodeMap[result.status] || 801;
 
-        return NextResponse.json({ code: 803 });
-      }
-
-      return NextResponse.json({ code: qrStatus });
+      return NextResponse.json({ code });
     }
 
     return NextResponse.json(
@@ -81,8 +78,14 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("QR login error:", error);
+    console.error("Error message:", error instanceof Error ? error.message : String(error));
+    console.error("Error stack:", error instanceof Error ? error.stack : "no stack");
+    console.error("NETEASE_APP_ID set:", !!process.env.NETEASE_APP_ID);
+    console.error("NETEASE_APP_SECRET set:", !!process.env.NETEASE_APP_SECRET);
+    console.error("NETEASE_PRIVATE_KEY set:", !!process.env.NETEASE_PRIVATE_KEY);
+    console.error("NETEASE_PRIVATE_KEY length:", process.env.NETEASE_PRIVATE_KEY?.length || 0);
     return NextResponse.json(
-      { error: "二维码登录失败，请稍后重试" },
+      { error: "二维码登录失败，请稍后重试", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

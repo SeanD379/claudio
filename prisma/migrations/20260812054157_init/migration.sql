@@ -1,0 +1,13 @@
+-- CreateTable
+CREATE TABLE `TokenStore` (
+    `id` VARCHAR(191) NOT NULL DEFAULT 'default',
+    `accessToken` VARCHAR(191) NOT NULL,
+    `refreshToken` VARCHAR(191) NOT NULL,
+    `expireAt` DATETIME(3) NOT NULL,
+    `anonymousAccessToken` VARCHAR(191) NULL,
+    `anonymousExpireAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
