@@ -1,55 +1,31 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/db";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { ncmApiGet } from "@/app/lib/netease-open-api";
+import { getValidToken, getUserProfile } from "@/app/lib/netease-token";
+import type { NcmPlaylist } from "@/app/lib/netease-open-api";
 
 // 获取用户网易云账号的歌单列表
 export async function GET() {
   try {
-    const cookiePath = resolve(process.cwd(), ".netease-cookie");
-    let cookie = "";
-    try {
-      cookie = readFileSync(cookiePath, "utf-8").trim();
-    } catch {
+    const token = await getValidToken();
+
+    // 获取用户信息
+    const profile = await getUserProfile();
+    if (!profile) {
       return NextResponse.json(
         { error: "未登录网易云账号" },
         { status: 401 }
       );
     }
 
-    // 从 cookie 中提取用户 ID
-    const uidMatch = cookie.match(/MUSIC_U=[^;]+/);
-    if (!uidMatch) {
-      return NextResponse.json(
-        { error: "Cookie 无效，请重新登录" },
-        { status: 401 }
-      );
-    }
-
-    // 调用网易云 API 获取用户歌单
-    const { getMusicConfig } = await import("@/app/lib/music");
-    const config = getMusicConfig();
-    const cookieParam = cookie ? `&cookie=${encodeURIComponent(cookie)}` : "";
-
-    // 先获取用户信息
-    const statusRes = await fetch(`${config.apiUrl}/login/status?cookie=${encodeURIComponent(cookie)}`);
-    const statusData = await statusRes.json();
-    const userId = statusData?.data?.account?.id;
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "无法获取用户信息" },
-        { status: 401 }
-      );
-    }
-
     // 获取用户歌单
-    const res = await fetch(
-      `${config.apiUrl}/user/playlist?uid=${userId}&limit=100${cookieParam}`
+    const data = await ncmApiGet<{ playlists: NcmPlaylist[] }>(
+      "/openapi/music/basic/playlist/created/get/v2",
+      {},
+      token
     );
-    const data = await res.json();
 
-    if (!data.playlist) {
+    if (!data.playlists) {
       return NextResponse.json({ playlists: [] });
     }
 
@@ -62,17 +38,15 @@ export async function GET() {
       imported.map((p) => p.neteaseId).filter(Boolean)
     );
 
-    const playlists = data.playlist.map(
-      (p: { id: number; name: string; trackCount: number; coverImgUrl: string; creator?: { nickname: string } }) => ({
-        playlistId: p.id,
-        name: p.name,
-        trackCount: p.trackCount,
-        coverUrl: p.coverImgUrl,
-        creator: p.creator?.nickname || "",
-        imported: importedIds.has(p.id.toString()),
-        isMine: p.creator?.nickname === statusData?.data?.profile?.nickname,
-      })
-    );
+    const playlists = data.playlists.map((p) => ({
+      playlistId: p.originalId,
+      name: p.name,
+      trackCount: p.trackCount,
+      coverUrl: p.coverImgUrl,
+      creator: p.creator?.nickname || "",
+      imported: importedIds.has(p.originalId.toString()),
+      isMine: p.creator?.nickname === profile.nickname,
+    }));
 
     return NextResponse.json({ playlists });
   } catch (error) {

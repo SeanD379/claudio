@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchSongs, getMusicConfig } from "@/app/lib/music";
+import { searchSongs } from "@/app/lib/music";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +14,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const config = getMusicConfig();
-    const songs = await searchSongs(config, keyword, limit);
+    const songs = await searchSongs(keyword, limit);
 
     return NextResponse.json({ songs });
   } catch (error) {

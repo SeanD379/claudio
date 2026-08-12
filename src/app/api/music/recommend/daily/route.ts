@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMusicConfig, getDailyRecommendations } from "@/app/lib/music";
+import { getDailyRecommendations } from "@/app/lib/music";
 import { isUserLoggedIn, getUnauthorizedResponse } from "@/app/lib/auth";
 
 export async function GET() {
@@ -9,8 +9,7 @@ export async function GET() {
   }
 
   try {
-    const config = getMusicConfig();
-    const songs = await getDailyRecommendations(config);
+    const songs = await getDailyRecommendations();
     return NextResponse.json({ songs });
   } catch (error) {
     console.error("Daily recommendations error:", error);

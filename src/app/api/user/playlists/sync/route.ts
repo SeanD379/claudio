@@ -46,11 +46,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 从网易云 API 获取最新歌单详情
-    const { getMusicConfig, getPlaylistDetail } = await import(
-      "@/app/lib/music"
-    );
-    const config = getMusicConfig();
-    const detail = await getPlaylistDetail(config, playlist.neteaseId);
+    const { getPlaylistDetail } = await import("@/app/lib/music");
+    const detail = await getPlaylistDetail(playlist.neteaseId);
 
     if (!detail) {
       return NextResponse.json(

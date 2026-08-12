@@ -180,11 +180,8 @@ export async function POST(request: NextRequest) {
       }
 
       // 调用网易云 API 获取歌单详情
-      const { getMusicConfig, getPlaylistDetail } = await import(
-        "@/app/lib/music"
-      );
-      const config = getMusicConfig();
-      const detail = await getPlaylistDetail(config, neteasePlaylistId);
+      const { getPlaylistDetail } = await import("@/app/lib/music");
+      const detail = await getPlaylistDetail(neteasePlaylistId);
 
       if (!detail) {
         return NextResponse.json(
@@ -295,7 +292,7 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// 更新歌单封面（从网易云API获取）
+// 更新歌单封面
 export async function PATCH() {
   // 检查登录状态
   if (!isUserLoggedIn()) {
@@ -303,50 +300,8 @@ export async function PATCH() {
   }
 
   try {
-    const { getMusicConfig, getSongDetail } = await import("@/app/lib/music");
-    const config = getMusicConfig();
-
-    const playlists = await prisma.playlist.findMany({
-      where: {
-        userId,
-        OR: [
-          { coverUrl: null },
-          { coverUrl: "https://p1.music.126.net/" },
-        ],
-      },
-      include: {
-        songs: {
-          take: 1,
-          include: { song: { select: { neteaseId: true } } },
-        },
-      },
-    });
-
-    let updated = 0;
-    for (const pl of playlists) {
-      const firstSongNeteaseId = pl.songs[0]?.song?.neteaseId;
-      if (!firstSongNeteaseId) continue;
-
-      try {
-        const songDetail = await getSongDetail(config, firstSongNeteaseId);
-        if (songDetail?.coverUrl) {
-          await prisma.playlist.update({
-            where: { id: pl.id },
-            data: { coverUrl: songDetail.coverUrl },
-          });
-          // 同时更新歌曲封面
-          await prisma.song.update({
-            where: { neteaseId: firstSongNeteaseId },
-            data: { coverUrl: songDetail.coverUrl },
-          });
-          updated++;
-        }
-      } catch (e) {
-        console.error(`Failed to fetch cover for playlist ${pl.id}:`, e);
-      }
-    }
-
-    return NextResponse.json({ success: true, updated });
+    // 官方 API 没有单独的歌曲详情端点，此功能暂时跳过
+    return NextResponse.json({ success: true, updated: 0 });
   } catch (error) {
     console.error("Update playlist covers error:", error);
     return NextResponse.json(

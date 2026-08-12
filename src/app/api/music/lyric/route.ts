@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLyrics, getMusicConfig } from "@/app/lib/music";
+import { getLyrics } from "@/app/lib/music";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +13,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const config = getMusicConfig();
-    const lyrics = await getLyrics(config, songId);
+    const lyrics = await getLyrics(songId);
 
     return NextResponse.json({ lyrics });
   } catch (error) {
