@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/db";
-import { getUserProfile, hasUserToken } from "@/app/lib/netease-token";
+import { getUserProfile, hasCookie } from "@/app/lib/ncm-auth";
 
 const userId = "default-user";
 
@@ -14,11 +14,11 @@ export async function GET() {
 
     // 尝试获取网易云用户信息
     let neteaseProfile = null;
-    if (await hasUserToken()) {
+    if (await hasCookie()) {
       try {
         neteaseProfile = await getUserProfile();
       } catch (err) {
-        console.log("Failed to fetch netease profile:", err);
+        console.log("获取网易云资料失败:", err);
       }
     }
 

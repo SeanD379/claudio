@@ -1,33 +1,16 @@
+// NeteaseCloudMusicApi 本地服务启动脚本
+// 为 Claudio 提供音乐数据 API（搜索、播放 URL、歌词、歌单详情等）
+// 登录系统仍使用官方 OpenAPI，不依赖此服务
 const { serveNcmApi } = require("NeteaseCloudMusicApi");
-const fs = require("fs");
-const path = require("path");
 
 const PORT = process.env.MUSIC_API_PORT || 3001;
-const COOKIE_FILE = path.join(__dirname, "..", ".netease-cookie");
-
-async function loadSavedCookie() {
-  try {
-    if (fs.existsSync(COOKIE_FILE)) {
-      const cookie = fs.readFileSync(COOKIE_FILE, "utf-8").trim();
-      if (cookie) {
-        // Refresh login with saved cookie
-        await fetch(
-          `http://localhost:${PORT}/login/refresh?cookie=${encodeURIComponent(cookie)}`
-        );
-        console.log("Loaded saved login cookie");
-      }
-    }
-  } catch (err) {
-    console.warn("Failed to load saved cookie:", err.message);
-  }
-}
 
 serveNcmApi({ port: PORT })
-  .then(async () => {
-    console.log(`Music API server running @ http://localhost:${PORT}`);
-    await loadSavedCookie();
+  .then(() => {
+    console.log(`[NCM API] 音乐数据服务已启动 @ http://localhost:${PORT}`);
+    console.log("[NCM API] 可用端点: /search, /song/url, /song/detail, /playlist/detail, /lyric, /personalized, /recommend/songs 等");
   })
   .catch((err) => {
-    console.error("Failed to start Music API server:", err);
+    console.error("[NCM API] 启动失败:", err.message);
     process.exit(1);
   });

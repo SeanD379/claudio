@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
+  // NeteaseCloudMusicApi 不打包，运行时动态导入
+  serverExternalPackages: ["NeteaseCloudMusicApi"],
   images: {
     remotePatterns: [
       { protocol: "https" as const, hostname: "p1.music.126.net" },

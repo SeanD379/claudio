@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/lib/db";
-import { ncmApiGet } from "@/app/lib/netease-open-api";
-import { getValidToken, getUserProfile } from "@/app/lib/netease-token";
-import type { NcmPlaylist } from "@/app/lib/netease-open-api";
+import { getUserProfile, getValidCookie } from "@/app/lib/ncm-auth";
+
+const NCM_API_BASE = process.env.NCM_API_URL || "http://localhost:3001";
 
 // 获取用户网易云账号的歌单列表
 export async function GET() {
   try {
-    const token = await getValidToken();
+    const cookie = await getValidCookie();
+    if (!cookie) {
+      return NextResponse.json(
+        { error: "未登录网易云账号" },
+        { status: 401 }
+      );
+    }
 
     // 获取用户信息
     const profile = await getUserProfile();
@@ -19,13 +25,22 @@ export async function GET() {
     }
 
     // 获取用户歌单
-    const data = await ncmApiGet<{ playlists: NcmPlaylist[] }>(
-      "/openapi/music/basic/playlist/created/get/v2",
-      {},
-      token
+    const res = await fetch(
+      `${NCM_API_BASE}/user/playlist?uid=${profile.userId}&cookie=${encodeURIComponent(cookie)}`,
+      { headers: { "User-Agent": "Mozilla/5.0" } }
     );
+    const data = await res.json() as {
+      code: number;
+      playlist?: Array<{
+        id: number;
+        name: string;
+        trackCount: number;
+        coverImgUrl: string;
+        creator?: { nickname: string };
+      }>;
+    };
 
-    if (!data.playlists) {
+    if (data.code !== 200 || !data.playlist) {
       return NextResponse.json({ playlists: [] });
     }
 
@@ -38,13 +53,13 @@ export async function GET() {
       imported.map((p) => p.neteaseId).filter(Boolean)
     );
 
-    const playlists = data.playlists.map((p) => ({
-      playlistId: p.originalId,
+    const playlists = data.playlist.map((p) => ({
+      playlistId: p.id,
       name: p.name,
       trackCount: p.trackCount,
       coverUrl: p.coverImgUrl,
       creator: p.creator?.nickname || "",
-      imported: importedIds.has(p.originalId.toString()),
+      imported: importedIds.has(p.id.toString()),
       isMine: p.creator?.nickname === profile.nickname,
     }));
 

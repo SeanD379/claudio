@@ -306,26 +306,6 @@ export function QRCodeLoginModal({
             <div className="text-center text-sm text-gray-400">
               <p>登录即代表同意相关服务条款</p>
             </div>
-
-            {/* 分隔线 */}
-            <div className="flex items-center my-4">
-              <div className="flex-1 border-t border-gray-200"></div>
-              <span className="px-3 text-sm text-gray-400">或</span>
-              <div className="flex-1 border-t border-gray-200"></div>
-            </div>
-
-            {/* 网页授权登录按钮 */}
-            <button
-              onClick={() => {
-                window.location.href = "/api/netease/login/authorize";
-              }}
-              className="w-full py-3 rounded-xl font-medium transition-all duration-200 bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 active:scale-95"
-            >
-              网页授权登录
-            </button>
-            <p className="text-center text-xs text-gray-400 mt-2">
-              跳转到网易云音乐完成授权
-            </p>
           </motion.div>
         </motion.div>
       )}
