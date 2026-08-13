@@ -153,7 +153,9 @@ async function ncmApi(path: string, params: Record<string, string> = {}): Promis
     const funcName = path.replace(/^\//, "").replace(/\//g, "_");
     const func = ncm[funcName] || ncm.default?.[funcName];
     if (typeof func === "function") {
-      return func(params);
+      const result = await func(params);
+      // NeteaseCloudMusicApi 返回 { status, body, cookie }，提取 body
+      return result?.body || result;
     }
     throw new Error(`NCM API function not found: ${funcName}`);
   }

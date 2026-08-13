@@ -30,7 +30,8 @@ async function ncmCall<T>(path: string, params: Record<string, string | number> 
     const func = ncm[funcName] || ncm.default?.[funcName];
     if (typeof func === "function") {
       const result = await func(params);
-      return result as T;
+      // NeteaseCloudMusicApi 返回 { status, body, cookie }，提取 body
+      return (result?.body || result) as T;
     }
     throw new Error(`NCM API function not found: ${funcName}`);
   }
