@@ -21,7 +21,8 @@ export async function GET() {
       diagnostics.defaultKeys = ncm.default ? Object.keys(ncm.default).slice(0, 10) : [];
 
       if (typeof func === "function") {
-        const result = await func({ timestamp: Date.now() });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await func({ timestamp: Date.now() } as any);
         diagnostics.functionResult = {
           hasResult: !!result,
           resultKeys: result ? Object.keys(result) : [],
