@@ -25,7 +25,7 @@ interface ThemeState {
 export const useTheme = create<ThemeState>((set, get) => ({
   theme: "light",
   language: "zh",
-  narrationEnabled: true,
+  narrationEnabled: false,
   autoPlay: false,
   quickSwitch: false,
   dynamicBg: true,

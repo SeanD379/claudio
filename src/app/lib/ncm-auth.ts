@@ -1,8 +1,10 @@
 // NeteaseCloudMusicApi 认证管理
-// 基于实际 API 响应格式编写
+// 本地开发：通过 HTTP 调用 localhost:3001 的 NeteaseCloudMusicApi 服务
+// Netlify：通过 exec 调用 ncm-cli 命令（使用官方 API 认证）
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import { resolve } from "path";
+import { execSync } from "child_process";
 
 const COOKIE_FILE = resolve(process.cwd(), ".netease-cookie.json");
 const NCM_API = process.env.NCM_API_URL || "http://localhost:3001";
@@ -120,62 +122,27 @@ export async function hasCookie(): Promise<boolean> {
   return !!(await getValidCookie());
 }
 
-// ============ NeteaseCloudMusicApi 调用 ============
+// ============ HTTP 调用 ============
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let ncmModule: any = null;
-
-async function getNcm() {
-  if (!ncmModule) ncmModule = await import("NeteaseCloudMusicApi");
-  return ncmModule;
-}
-
-/**
- * 本地开发通过 HTTP 调用
- * Netlify 直接调用包（函数返回 {status, body, cookie}）
- */
-async function callApi(path: string, params: Record<string, string | number> = {}): Promise<unknown> {
-  if (isNetlify()) {
-    const ncm = await getNcm();
-    // 将路径转换为函数名: /login/qr/key -> login_qr_key
-    const funcName = path.replace(/^\//, "").replace(/\//g, "_");
-    const func = ncm[funcName] || ncm.default?.[funcName];
-    if (typeof func !== "function") {
-      throw new Error(`NCM API function not found: ${funcName}`);
-    }
-    const result = await func(params);
-    // 包返回 {status, body, cookie}，我们返回 body
-    return result?.body || result;
-  }
-
-  // 本地开发: HTTP 调用
+async function httpGet(path: string, params: Record<string, string | number> = {}): Promise<unknown> {
   const query = new URLSearchParams(
     Object.entries(params).map(([k, v]) => [k, String(v)])
   ).toString();
   const url = `${NCM_API}${path}${query ? `?${query}` : ""}`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
   if (!res.ok) throw new Error(`NCM API error: ${res.status}`);
   return res.json();
-}
-
-async function callApiWithCookie(path: string, params: Record<string, string | number> = {}): Promise<unknown> {
-  const cookie = await getValidCookie();
-  if (cookie) params.cookie = cookie;
-  return callApi(path, params);
 }
 
 // ============ QR 码登录 ============
 
 /**
  * 生成 QR 码
- * 实际返回格式: {data: {code: 200, unikey: "..."}}
  */
 export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string } | null> {
   try {
     // 1. 获取 QR key
-    const keyRes = (await callApi("/login/qr/key", { timestamp: Date.now() })) as {
+    const keyRes = (await httpGet("/login/qr/key", { timestamp: Date.now() })) as {
       data?: { code?: number; unikey?: string };
     };
     const unikey = keyRes?.data?.unikey;
@@ -185,7 +152,7 @@ export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string 
     }
 
     // 2. 创建 QR 图片
-    const createRes = (await callApi("/login/qr/create", {
+    const createRes = (await httpGet("/login/qr/create", {
       key: unikey,
       qrimg: "true",
       timestamp: Date.now(),
@@ -208,14 +175,13 @@ export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string 
 
 /**
  * 检查 QR 码扫描状态
- * 返回格式: {code: 800|801|802|803, message: "...", cookie: "..."}
  */
 export async function checkQrStatus(uniKey: string): Promise<{
   status: number;
   message?: string;
 }> {
   try {
-    const res = (await callApi("/login/qr/check", {
+    const res = (await httpGet("/login/qr/check", {
       key: uniKey,
       timestamp: Date.now(),
     })) as {
@@ -253,7 +219,7 @@ async function fetchProfile(cookie: string): Promise<{
   avatarUrl: string;
 } | null> {
   try {
-    const data = (await callApi("/user/account", { cookie })) as {
+    const data = (await httpGet("/user/account", { cookie })) as {
       code?: number;
       profile?: { userId: number; nickname: string; avatarUrl: string };
     };
@@ -285,7 +251,7 @@ export async function logout(): Promise<void> {
   const cookie = await getValidCookie();
   if (cookie) {
     try {
-      await callApiWithCookie("/logout", { timestamp: Date.now() });
+      await httpGet("/logout", { timestamp: Date.now(), cookie });
     } catch {}
   }
   await deleteCookie();

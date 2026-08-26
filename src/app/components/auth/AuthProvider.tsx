@@ -80,9 +80,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isOpen={isModalOpen}
         onClose={hideLoginModal}
         onLoginSuccess={async () => {
-          // 二维码登录成功时，直接设置为已登录（不等网络验证）
-          // checkAuth 会在后台异步更新用户信息
-          auth.checkAuth();
+          console.log("[Auth] QR login success, calling checkAuth...");
+          await auth.checkAuth();
+          console.log("[Auth] checkAuth completed, isLoggedIn:", auth.isLoggedIn);
         }}
       />
 

@@ -36,6 +36,11 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
     importFromNetease,
   } = usePlaylists();
 
+  // 查看歌单详情
+  const handleViewPlaylist = (playlistId: string) => {
+    router.push(`/playlists/${playlistId}`);
+  };
+
   const {
     theme,
     language,
@@ -948,6 +953,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: i * 0.03 }}
                   className="group cursor-pointer"
+                  onClick={() => handleViewPlaylist(pl.id)}
                 >
                   <div className="aspect-square rounded-lg overflow-hidden relative mb-2" style={{ background: "#282828" }}>
                     {pl.coverUrl ? (

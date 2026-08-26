@@ -163,7 +163,8 @@ export async function searchSongs(keyword: string, limit: number = 20): Promise<
 
 export async function getSongUrl(songId: string, bitrate: number = 320): Promise<string | null> {
   try {
-    const data = await ncmCall<{ data?: Array<{ url: string | null }> }>("/song/url", {
+    // VIP 歌曲需要 cookie 才能获取完整播放链接，使用 ncmCallWithCookie
+    const data = await ncmCallWithCookie<{ data?: Array<{ url: string | null }> }>("/song/url", {
       id: songId,
       br: bitrate * 1000,
     });

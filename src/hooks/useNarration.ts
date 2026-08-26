@@ -137,6 +137,11 @@ function cacheKey(id: string, lang: string) {
 
 // 预缓存单首歌的旁白 + TTS（异步，不阻塞）
 async function prefetchOne(song: Song, lang: "zh" | "en") {
+  // 旁白功能禁用时跳过预缓存
+  if (!useTheme.getState().narrationEnabled) {
+    return;
+  }
+
   const id = song.neteaseId;
   const key = cacheKey(id, lang);
 

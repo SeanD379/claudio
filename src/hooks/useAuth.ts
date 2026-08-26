@@ -27,8 +27,11 @@ export function useAuth() {
   const checkAuth = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
-      const res = await fetch("/api/user/profile");
+      const res = await fetch("/api/user/profile", {
+        credentials: "include", // 确保发送 Cookie
+      });
       const data = await res.json();
+      console.log("[useAuth] checkAuth response:", data.neteaseProfile ? "logged in" : "not logged in");
 
       if (data.neteaseProfile) {
         setState({

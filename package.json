@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently --names \"NCM,NEXT\" --prefix-colors \"cyan,green\" \"node scripts/start-music-api.js\" \"next dev --turbopack -p 3000\"",
+    "dev": "concurrently --names \"NCM,NEXT\" --prefix-colors \"cyan,green\" \"node scripts/start-music-api.js\" \"next dev -p 3000\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
