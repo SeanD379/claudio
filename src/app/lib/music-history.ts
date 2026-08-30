@@ -8,7 +8,7 @@ export interface HistoryCandidate {
   artist: string | null;
   sourceType: HistorySourceType;
   sourceTitle: string;
-  sourceUrl: string;
+  sourceUrl: string | null;
   fingerprint: string;
 }
 
@@ -45,11 +45,14 @@ const MUSIC_KEYWORDS = [
 ];
 
 export function parseHistoryDate(
-  yearValue: string,
-  monthValue: string,
-  dayValue: string,
+  yearValue: string | null,
+  monthValue: string | null,
+  dayValue: string | null,
 ): ParsedHistoryDate | null {
   if (
+    yearValue === null ||
+    monthValue === null ||
+    dayValue === null ||
     !/^\d{1,4}$/.test(yearValue) ||
     !/^\d{1,2}$/.test(monthValue) ||
     !/^\d{1,2}$/.test(dayValue)
@@ -65,6 +68,8 @@ export function parseHistoryDate(
   date.setUTCHours(0, 0, 0, 0);
 
   if (
+    displayYear < 1 ||
+    displayYear > 9999 ||
     month < 1 ||
     month > 12 ||
     date.getUTCFullYear() !== displayYear ||
@@ -102,7 +107,9 @@ export function parseMusicHistoryWikitext(
   const candidates = new Map<string, HistoryCandidate>();
 
   for (const line of source.split(/\r?\n/)) {
-    const match = line.match(/^\s*[*#]\s*(?:\[\[)?(\d{1,4})年(?:\]\])?\s*[：:]\s*(.+)$/);
+    const match = line.match(
+      /^\*\s*(?:\[\[)?(\d{1,4})年(?:\]\])?\s*(?:[：:—–-]\s*)?(.+)$/,
+    );
     if (!match) {
       continue;
     }

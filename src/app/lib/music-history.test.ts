@@ -21,6 +21,13 @@ test("parseHistoryDate rejects rollover dates", () => {
   assert.equal(parseHistoryDate("2026", "02", "30"), null);
 });
 
+test("parseHistoryDate rejects missing values and year zero", () => {
+  assert.equal(parseHistoryDate(null, "08", "30"), null);
+  assert.equal(parseHistoryDate("2026", null, "30"), null);
+  assert.equal(parseHistoryDate("2026", "08", null), null);
+  assert.equal(parseHistoryDate("0000", "08", "30"), null);
+});
+
 test("parseMusicHistoryWikitext keeps music events and cleans wiki markup", () => {
   const source = `
 == 大事记 ==
@@ -74,6 +81,37 @@ test("allocateUnseenCandidates never returns a used fingerprint", () => {
     ),
     ["b", "c", "d"],
   );
+});
+
+test("parseMusicHistoryWikitext supports year separators and ignores numbered lines", () => {
+  const source = `
+* [[1960年]]：音乐事件甲
+* [[1961年]]:音乐事件乙
+* [[1962年]]—音乐事件丙
+* [[1963年]]–音乐事件丁
+* [[1964年]]-音乐事件戊
+* [[1965年]]音乐事件己
+# [[1966年]]：音乐事件庚
+`;
+
+  assert.deepEqual(
+    parseMusicHistoryWikitext(source, "08-30").map((item) => item.eventYear),
+    [1960, 1961, 1962, 1963, 1964, 1965],
+  );
+});
+
+test("HistoryCandidate permits a null source URL for local fallbacks", () => {
+  const localCandidate: HistoryCandidate = {
+    eventYear: 1965,
+    event: "本地音乐事件",
+    artist: null,
+    sourceType: "local",
+    sourceTitle: "本地数据",
+    sourceUrl: null,
+    fingerprint: "local",
+  };
+
+  assert.equal(localCandidate.sourceUrl, null);
 });
 
 function candidate(
