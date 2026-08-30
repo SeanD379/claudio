@@ -50,6 +50,19 @@
 - `(monthDay, fingerprint)` 唯一，保证同一个月日跨展示年份不重复事件。
 - 数据库写入使用事务；并发首次请求产生唯一键冲突时重新读取已保存批次。
 
+## 存储环境与部署
+
+本地测试和线上部署共用同一套 Prisma 模型与读写代码，通过环境中的 `DATABASE_URL` 自动连接不同数据库，不根据 `NODE_ENV` 在代码中硬编码数据库地址。
+
+- 本地开发：项目本地 `.env` 或 `.env.local` 的 `DATABASE_URL` 指向用户现有的 MySQL。生成的历史事件只写入本地 MySQL。
+- Netlify 预览与生产：在 Netlify 站点环境变量中配置 `DATABASE_URL`，指向 TiDB Cloud。线上生成的历史事件只写入 TiDB Cloud。
+- Prisma datasource 继续使用现有的 `provider = "mysql"` 和 `url = env("DATABASE_URL")`；TiDB 与 Prisma 使用 MySQL 兼容连接，不维护第二套 ORM 配置。
+- TiDB Cloud 连接字符串从控制台选择 Prisma 后获取，公共连接必须启用 TLS；Starter/Essential 通常使用包含 `sslaccept=strict` 的连接字符串。
+- 数据库密码只保存于本地未提交的环境文件和 Netlify 加密环境变量中，不写入代码、设计文档或 Git。
+- 新模型先在本地 MySQL 应用并验证迁移；部署前再使用生产 `DATABASE_URL` 对 TiDB Cloud 执行已提交的 Prisma migration。应用请求期间不自动建表或修改数据库结构。
+- Netlify Function 继续使用现有 Prisma Client，不切换到 Edge Function 或 TiDB serverless driver，避免同一项目维护两种数据访问方式。
+- 如果使用 TiDB Cloud Dedicated，需要按 TiDB Cloud 的 Netlify 指引配置动态出口 IP 的流量规则；Starter/Essential 使用其对应的公共端点规则。
+
 ## API 设计
 
 保留现有 `GET /api/calendar/history`，参数改为：
@@ -106,6 +119,7 @@ year=2026&month=08&day=30
 - API 返回结构异常时视为外部请求失败，进入本地备用路径。
 - 数据库错误返回 500；客户端显示独立错误状态，不隐藏“我的今天”。
 - 本地开发需要让 Next.js 服务拥有外网访问权限；生产环境由 Netlify Server Function 发起请求。
+- 本地与线上都只读取各自环境的 `DATABASE_URL`；缺失变量时启动或构建失败，不静默回退到另一套数据库。
 - 不把外部响应原样写入数据库，避免保存 HTML、脚本或不可控标记。
 
 ## 验证标准
@@ -116,6 +130,6 @@ year=2026&month=08&day=30
 - 网络失败时会使用本地数据且仍不重复。
 - 候选耗尽时不会复用旧事件。
 - 未登录用户仍可查看公开历史事件。
+- 本地生成记录写入 MySQL，Netlify 线上生成记录写入 TiDB Cloud，且两种环境使用相同 Prisma 查询行为。
 - 月度播放统计和当天播放详情行为保持不变。
 - TypeScript、Prisma 校验和相关接口手动测试通过。
-
