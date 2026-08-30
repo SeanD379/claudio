@@ -157,3 +157,22 @@ model TokenStore {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
+
+model MusicHistoryEntry {
+  id           String   @id @default(cuid())
+  monthDay     String   @db.Char(5)
+  displayYear  Int
+  slot         Int
+  eventYear    Int
+  event        String   @db.Text
+  artist       String?  @db.VarChar(191)
+  sourceType   String   @db.VarChar(16)
+  sourceTitle  String   @db.VarChar(191)
+  sourceUrl    String?  @db.Text
+  fingerprint  String   @db.Char(64)
+  createdAt    DateTime @default(now())
+
+  @@unique([monthDay, displayYear, slot], map: "uq_music_history_batch_slot")
+  @@unique([monthDay, fingerprint], map: "uq_music_history_fingerprint")
+  @@index([monthDay, displayYear], map: "idx_music_history_batch")
+}
