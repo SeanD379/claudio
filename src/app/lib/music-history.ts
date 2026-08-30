@@ -43,6 +43,7 @@ const MUSIC_KEYWORDS = [
   "DJ",
   "制作人",
 ];
+const SECONDARY_MUSIC_KEYWORD = "发行";
 
 export function parseHistoryDate(
   yearValue: string | null,
@@ -137,12 +138,26 @@ export function parseMusicHistoryWikitext(
 
 export function allocateUnseenCandidates(
   candidates: HistoryCandidate[],
-  usedFingerprints: Set<string>,
+  usedFingerprints: ReadonlySet<string>,
   count: number,
 ): HistoryCandidate[] {
+  if (!Number.isFinite(count) || count <= 0) {
+    return [];
+  }
+
+  const fingerprints = new Set<string>();
   return sortCandidates(
     candidates.filter((candidate) => !usedFingerprints.has(candidate.fingerprint)),
-  ).slice(0, count);
+  )
+    .filter((candidate) => {
+      if (fingerprints.has(candidate.fingerprint)) {
+        return false;
+      }
+
+      fingerprints.add(candidate.fingerprint);
+      return true;
+    })
+    .slice(0, Math.floor(count));
 }
 
 function cleanWikiText(value: string): string {
@@ -166,6 +181,7 @@ function cleanWikiText(value: string): string {
 function containsMusicKeyword(event: string): boolean {
   const normalized = event.toLocaleLowerCase("zh-CN");
   return MUSIC_KEYWORDS.some((keyword) =>
+    keyword !== SECONDARY_MUSIC_KEYWORD &&
     normalized.includes(keyword.toLocaleLowerCase("zh-CN")),
   );
 }

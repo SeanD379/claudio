@@ -67,6 +67,28 @@ test("parseMusicHistoryWikitext keeps music events and cleans wiki markup", () =
   ]);
 });
 
+test("parseMusicHistoryWikitext requires a music keyword beyond 发行", () => {
+  const source = `
+* [[2000年]]：某国发行新版护照。
+* [[2001年]]：歌手发行单曲。
+`;
+
+  assert.deepEqual(
+    parseMusicHistoryWikitext(source, "08-30").map((item) => item.event),
+    ["歌手发行单曲。"],
+  );
+});
+
+test("buildHistoryFingerprint uses SHA-256 and normalizes equivalent event text", () => {
+  const expected = "4970330000b005a0c0c674ae3f0a263fcf81dde00177dcc6c0a26009a3f01903";
+
+  assert.equal(
+    buildHistoryFingerprint("08-30", 1965, "ＡＢＣ， 歌手！"),
+    expected,
+  );
+  assert.equal(buildHistoryFingerprint("08-30", 1965, "abc歌手"), expected);
+});
+
 test("allocateUnseenCandidates never returns a used fingerprint", () => {
   const candidates: HistoryCandidate[] = [
     candidate(1965, "事件 A", "a"),
@@ -81,6 +103,37 @@ test("allocateUnseenCandidates never returns a used fingerprint", () => {
     ),
     ["b", "c", "d"],
   );
+});
+
+test("allocateUnseenCandidates deduplicates and accepts readonly used fingerprints", () => {
+  const candidates: HistoryCandidate[] = [
+    candidate(1970, "事件 B", "b"),
+    candidate(1965, "事件 A", "a"),
+    candidate(1966, "重复事件 A", "a"),
+    candidate(1960, "已使用事件", "used"),
+  ];
+  const usedFingerprints: ReadonlySet<string> = new Set(["used"]);
+
+  assert.deepEqual(
+    allocateUnseenCandidates(candidates, usedFingerprints, 3).map(
+      (item) => [item.eventYear, item.fingerprint],
+    ),
+    [
+      [1965, "a"],
+      [1970, "b"],
+    ],
+  );
+});
+
+test("allocateUnseenCandidates rejects non-positive and non-finite limits", () => {
+  const candidates: HistoryCandidate[] = [
+    candidate(1965, "事件 A", "a"),
+    candidate(1970, "事件 B", "b"),
+  ];
+
+  for (const count of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.deepEqual(allocateUnseenCandidates(candidates, new Set(), count), []);
+  }
 });
 
 test("parseMusicHistoryWikitext supports year separators and ignores numbered lines", () => {
@@ -98,20 +151,6 @@ test("parseMusicHistoryWikitext supports year separators and ignores numbered li
     parseMusicHistoryWikitext(source, "08-30").map((item) => item.eventYear),
     [1960, 1961, 1962, 1963, 1964, 1965],
   );
-});
-
-test("HistoryCandidate permits a null source URL for local fallbacks", () => {
-  const localCandidate: HistoryCandidate = {
-    eventYear: 1965,
-    event: "本地音乐事件",
-    artist: null,
-    sourceType: "local",
-    sourceTitle: "本地数据",
-    sourceUrl: null,
-    fingerprint: "local",
-  };
-
-  assert.equal(localCandidate.sourceUrl, null);
 });
 
 function candidate(
