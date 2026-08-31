@@ -1,33 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import musicHistory from "@/data/music-history.json";
+import { parseHistoryDate } from "@/app/lib/music-history";
+import { getOrCreateHistoryBatch } from "@/app/lib/music-history-service";
 
-interface HistoryEvent {
-  year: number;
-  event: string;
-  artist?: string | null;
-}
+export const runtime = "nodejs";
 
-// 获取历史上的今天
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const month = searchParams.get("month");
-    const day = searchParams.get("day");
+    const historyDate = parseHistoryDate(
+      searchParams.get("year"),
+      searchParams.get("month"),
+      searchParams.get("day"),
+    );
 
-    if (!month || !day) {
+    if (!historyDate) {
       return NextResponse.json(
-        { error: "month and day are required" },
+        { error: "Invalid date; expected a real year/month/day" },
         { status: 400 }
       );
     }
 
-    // 格式化为 MM-DD
-    const key = `${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-
-    const events: HistoryEvent[] =
-      (musicHistory as Record<string, HistoryEvent[]>)[key] ?? [];
-
-    return NextResponse.json({ events });
+    const historyBatch = await getOrCreateHistoryBatch(historyDate);
+    return NextResponse.json(historyBatch, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     console.error("Get history events error:", error);
     return NextResponse.json(
