@@ -37,7 +37,10 @@ interface UsedFingerprintEntry {
 }
 
 interface HistoryEntryCreateInput {
-  data: StoredHistoryEntry & UsedFingerprintEntry;
+  data: StoredHistoryEntry &
+    UsedFingerprintEntry & {
+      sourceType: "local" | "wikimedia";
+    };
 }
 
 interface ServicePrisma {
@@ -462,8 +465,13 @@ test("getOrCreateHistoryBatch falls back to unused local candidates after used W
     1960,
     "歌手甲发行专辑。",
   );
+  const localFingerprint = buildHistoryFingerprint(
+    "08-29",
+    1958,
+    "Michael Jackson 出生于印第安纳州加里市",
+  );
   const persisted: StoredHistoryEntry[] = [];
-  const savedFingerprints: string[] = [];
+  const createPayloads: Array<HistoryEntryCreateInput["data"]> = [];
   let findManyCalls = 0;
 
   const restore = installServiceMocks(
@@ -478,21 +486,36 @@ test("getOrCreateHistoryBatch falls back to unused local candidates after used W
       if (findManyCalls === 3) {
         return persisted;
       }
+      if (findManyCalls === 4) {
+        return [{ fingerprint: usedFingerprint }];
+      }
+      if (findManyCalls === 5) {
+        return persisted;
+      }
 
       throw new Error(`unexpected findMany call ${findManyCalls}`);
     },
     async (input) => {
       const { data } = input as HistoryEntryCreateInput;
-      savedFingerprints.push(data.fingerprint);
+      createPayloads.push(data);
       return data;
     },
     async () => {
-      persisted.push({
-        eventYear: 1958,
-        event: "Michael Jackson 出生于印第安纳州加里市",
-        artist: "Michael Jackson",
-        sourceUrl: null,
-      });
+      if (createPayloads.length === 1) {
+        throw new Prisma.PrismaClientKnownRequestError("conflict", {
+          code: "P2002",
+          clientVersion: "test",
+        });
+      }
+
+      persisted.push(
+        ...createPayloads.slice(1).map((data) => ({
+          eventYear: data.eventYear,
+          event: data.event,
+          artist: data.artist,
+          sourceUrl: data.sourceUrl,
+        })),
+      );
     },
     async () => wikiResponse(wikitext),
   );
@@ -511,8 +534,22 @@ test("getOrCreateHistoryBatch falls back to unused local candidates after used W
       saved: true,
       exhausted: false,
     });
-    assert.equal(savedFingerprints.length, 1);
-    assert.notEqual(savedFingerprints[0], usedFingerprint);
+    assert.deepEqual(createPayloads.map((data) => data.fingerprint), [
+      localFingerprint,
+      localFingerprint,
+    ]);
+    assert.deepEqual(
+      createPayloads.slice(1).map((data) => data.sourceType),
+      ["local"],
+    );
+    assert.deepEqual(
+      createPayloads.slice(1).map((data) => data.fingerprint),
+      [localFingerprint],
+    );
+    assert.equal(
+      createPayloads.slice(1).some((data) => data.fingerprint === usedFingerprint),
+      false,
+    );
   } finally {
     restore();
   }
