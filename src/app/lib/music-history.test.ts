@@ -449,6 +449,75 @@ test("getOrCreateHistoryBatch returns exhausted when every candidate is used", a
   }
 });
 
+test("getOrCreateHistoryBatch falls back to unused local candidates after used Wikimedia candidates", async () => {
+  const localHistoryDate = {
+    displayYear: 2026,
+    month: 8,
+    day: 29,
+    monthDay: "08-29",
+  };
+  const wikitext = "* [[1960年]]：歌手甲发行专辑。";
+  const usedFingerprint = buildHistoryFingerprint(
+    "08-29",
+    1960,
+    "歌手甲发行专辑。",
+  );
+  const persisted: StoredHistoryEntry[] = [];
+  const savedFingerprints: string[] = [];
+  let findManyCalls = 0;
+
+  const restore = installServiceMocks(
+    async () => {
+      findManyCalls += 1;
+      if (findManyCalls === 1) {
+        return [];
+      }
+      if (findManyCalls === 2) {
+        return [{ fingerprint: usedFingerprint }];
+      }
+      if (findManyCalls === 3) {
+        return persisted;
+      }
+
+      throw new Error(`unexpected findMany call ${findManyCalls}`);
+    },
+    async (input) => {
+      const { data } = input as HistoryEntryCreateInput;
+      savedFingerprints.push(data.fingerprint);
+      return data;
+    },
+    async () => {
+      persisted.push({
+        eventYear: 1958,
+        event: "Michael Jackson 出生于印第安纳州加里市",
+        artist: "Michael Jackson",
+        sourceUrl: null,
+      });
+    },
+    async () => wikiResponse(wikitext),
+  );
+
+  try {
+    assert.deepEqual(await getOrCreateHistoryBatch(localHistoryDate), {
+      events: [
+        {
+          year: 1958,
+          event: "Michael Jackson 出生于印第安纳州加里市",
+          artist: "Michael Jackson",
+          sourceUrl: null,
+        },
+      ],
+      source: "local",
+      saved: true,
+      exhausted: false,
+    });
+    assert.equal(savedFingerprints.length, 1);
+    assert.notEqual(savedFingerprints[0], usedFingerprint);
+  } finally {
+    restore();
+  }
+});
+
 function candidate(
   eventYear: number,
   event: string,

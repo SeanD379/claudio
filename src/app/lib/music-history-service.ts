@@ -81,11 +81,23 @@ export async function getOrCreateHistoryBatch(
     where: { monthDay: date.monthDay },
     select: { fingerprint: true },
   });
+  const usedFingerprints = new Set(
+    usedEntries.map((entry) => entry.fingerprint),
+  );
   let batch = allocateUnseenCandidates(
     candidates,
-    new Set(usedEntries.map((entry) => entry.fingerprint)),
+    usedFingerprints,
     BATCH_SIZE,
   );
+
+  if (batch.length === 0 && source === "wikimedia") {
+    candidates = buildLocalCandidates(
+      date.monthDay,
+      (musicHistory as Record<string, LocalHistoryEvent[]>)[date.monthDay] ?? [],
+    );
+    source = "local";
+    batch = allocateUnseenCandidates(candidates, usedFingerprints, BATCH_SIZE);
+  }
 
   if (batch.length === 0) {
     return toResult([], source, false, true);
