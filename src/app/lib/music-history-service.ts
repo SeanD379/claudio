@@ -53,7 +53,7 @@ export async function getOrCreateHistoryBatch(
 ): Promise<HistoryBatchResult> {
   const stored = await readStoredBatch(date.monthDay, date.displayYear);
   if (stored.length > 0) {
-    return toResult(stored, "stored", false, false);
+    return toResult(stored, "stored", true, false);
   }
 
   let source: HistoryBatchResult["source"] = "wikimedia";
@@ -96,7 +96,7 @@ export async function getOrCreateHistoryBatch(
 
     const concurrentBatch = await readStoredBatch(date.monthDay, date.displayYear);
     if (concurrentBatch.length > 0) {
-      return toResult(concurrentBatch, "stored", false, false);
+      return toResult(concurrentBatch, "stored", true, false);
     }
 
     usedEntries = await prisma.musicHistoryEntry.findMany({
