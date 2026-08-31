@@ -22,6 +22,7 @@ export default function CalendarPage() {
     monthlyData,
     dayDetail,
     historyEvents,
+    historyState,
     loading,
     prevMonth,
     nextMonth,
@@ -129,6 +130,7 @@ export default function CalendarPage() {
               date={selectedDate}
               summary={dayDetail?.summary ?? null}
               historyEvents={historyEvents}
+              historyState={historyState}
               loading={loading}
               formatDuration={formatDuration}
             />

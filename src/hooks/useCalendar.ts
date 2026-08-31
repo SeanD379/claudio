@@ -54,7 +54,10 @@ interface HistoryEvent {
   year: number;
   event: string;
   artist?: string | null;
+  sourceUrl?: string | null;
 }
+
+export type HistoryState = "idle" | "loading" | "ready" | "exhausted" | "error";
 
 export function useCalendar() {
   const { isLoggedIn } = useAuthContext();
@@ -68,6 +71,7 @@ export function useCalendar() {
   const [monthlyData, setMonthlyData] = useState<DayStats[]>([]);
   const [dayDetail, setDayDetail] = useState<DayDetail | null>(null);
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
+  const [historyState, setHistoryState] = useState<HistoryState>("idle");
   const [loading, setLoading] = useState(false);
 
   // 获取月度数据（需要登录）
@@ -90,12 +94,23 @@ export function useCalendar() {
   // 获取某天详情
   const fetchDayDetail = useCallback(async (date: string) => {
     // 历史事件是公开数据，不需要登录
-    const historyRes = await fetch(
-      `/api/calendar/history?month=${date.slice(5, 7)}&day=${date.slice(8, 10)}`
-    );
-    if (historyRes.ok) {
+    setHistoryState("loading");
+    setHistoryEvents([]);
+    try {
+      const historyRes = await fetch(
+        `/api/calendar/history?year=${date.slice(0, 4)}&month=${date.slice(5, 7)}&day=${date.slice(8, 10)}`,
+        { cache: "no-store" }
+      );
+      if (!historyRes.ok) {
+        throw new Error(`History request failed: ${historyRes.status}`);
+      }
       const data = await historyRes.json();
       setHistoryEvents(data.events || []);
+      setHistoryState(data.exhausted ? "exhausted" : "ready");
+    } catch (e) {
+      console.error("Fetch history error:", e);
+      setHistoryEvents([]);
+      setHistoryState("error");
     }
 
     // 播放详情需要登录
@@ -173,6 +188,7 @@ export function useCalendar() {
     monthlyData,
     dayDetail,
     historyEvents,
+    historyState,
     loading,
     prevMonth,
     nextMonth,

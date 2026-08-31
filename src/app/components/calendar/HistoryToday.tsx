@@ -1,22 +1,24 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { ExternalLink, History, Loader2 } from "lucide-react";
+import type { HistoryState } from "@/hooks/useCalendar";
 
 interface HistoryEvent {
   year: number;
   event: string;
   artist?: string | null;
+  sourceUrl?: string | null;
 }
 
 interface HistoryTodayProps {
   events: HistoryEvent[];
+  state: HistoryState;
   month: number;
   day: number;
 }
 
-export function HistoryToday({ events, month, day }: HistoryTodayProps) {
-  if (events.length === 0) return null;
-
+export function HistoryToday({ events, state, month, day }: HistoryTodayProps) {
   // 按年份排序
   const sorted = [...events].sort((a, b) => a.year - b.year);
 
@@ -30,7 +32,7 @@ export function HistoryToday({ events, month, day }: HistoryTodayProps) {
     >
       {/* 标签 */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm">📜</span>
+        <History className="w-4 h-4" style={{ color: "#b3b3b3" }} />
         <span
           className="text-xs font-semibold tracking-wider uppercase"
           style={{ color: "#b3b3b3" }}
@@ -39,9 +41,22 @@ export function HistoryToday({ events, month, day }: HistoryTodayProps) {
         </span>
       </div>
 
-      {/* 时间线 */}
-      <div className="space-y-3">
-        {sorted.map((evt, i) => (
+      {state === "loading" ? (
+        <div className="flex items-center justify-center gap-2 py-6 text-xs" style={{ color: "#b3b3b3" }}>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          正在整理这一天的音乐记忆…
+        </div>
+      ) : state === "error" ? (
+        <p className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
+          历史内容暂时无法获取
+        </p>
+      ) : state === "exhausted" ? (
+        <p className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
+          暂时没有新的音乐历史事件
+        </p>
+      ) : state === "ready" && sorted.length > 0 ? (
+        <div className="space-y-3">
+          {sorted.map((evt, i) => (
           <motion.div
             key={`${evt.year}-${i}`}
             className="flex gap-3"
@@ -78,10 +93,27 @@ export function HistoryToday({ events, month, day }: HistoryTodayProps) {
                   {evt.artist}
                 </p>
               )}
+              {evt.sourceUrl && (
+                <a
+                  href={evt.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 mt-2 text-xs transition-colors"
+                  style={{ color: "#666" }}
+                >
+                  查看来源
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
           </motion.div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : state === "ready" ? (
+        <p className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
+          这一天没有音乐历史事件
+        </p>
+      ) : null}
     </motion.div>
   );
 }
