@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuthContext } from "@/app/components/auth/AuthProvider";
 
 interface DayStats {
@@ -59,6 +59,30 @@ interface HistoryEvent {
 
 export type HistoryState = "idle" | "loading" | "ready" | "exhausted" | "error";
 
+function parseHistoryData(data: unknown): { events: HistoryEvent[]; exhausted: boolean } {
+  if (typeof data !== "object" || data === null) {
+    return { events: [], exhausted: false };
+  }
+
+  const response = data as { events?: unknown; exhausted?: unknown };
+  const events = Array.isArray(response.events)
+    ? response.events.reduce<HistoryEvent[]>((validEvents, item) => {
+        if (typeof item !== "object" || item === null) return validEvents;
+
+        const event = item as { year?: unknown; event?: unknown; artist?: unknown; sourceUrl?: unknown };
+        if (typeof event.year !== "number" || typeof event.event !== "string") return validEvents;
+
+        const historyEvent: HistoryEvent = { year: event.year, event: event.event };
+        if (typeof event.artist === "string" || event.artist === null) historyEvent.artist = event.artist;
+        if (typeof event.sourceUrl === "string" || event.sourceUrl === null) historyEvent.sourceUrl = event.sourceUrl;
+        validEvents.push(historyEvent);
+        return validEvents;
+      }, [])
+    : [];
+
+  return { events, exhausted: response.exhausted === true };
+}
+
 export function useCalendar() {
   const { isLoggedIn } = useAuthContext();
   const [year, setYear] = useState(() => new Date().getFullYear());
@@ -73,6 +97,7 @@ export function useCalendar() {
   const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
   const [historyState, setHistoryState] = useState<HistoryState>("idle");
   const [loading, setLoading] = useState(false);
+  const dayDetailRequestId = useRef(0);
 
   // 获取月度数据（需要登录）
   const fetchMonthly = useCallback(async (y: number, m: number) => {
@@ -92,45 +117,59 @@ export function useCalendar() {
   }, [isLoggedIn]);
 
   // 获取某天详情
-  const fetchDayDetail = useCallback(async (date: string) => {
+  const fetchDayDetail = useCallback((date: string) => {
+    const requestId = ++dayDetailRequestId.current;
+    const isCurrentRequest = () => requestId === dayDetailRequestId.current;
+
     // 历史事件是公开数据，不需要登录
-    setHistoryState("loading");
-    setHistoryEvents([]);
-    try {
-      const historyRes = await fetch(
-        `/api/calendar/history?year=${date.slice(0, 4)}&month=${date.slice(5, 7)}&day=${date.slice(8, 10)}`,
-        { cache: "no-store" }
-      );
-      if (!historyRes.ok) {
-        throw new Error(`History request failed: ${historyRes.status}`);
-      }
-      const data = await historyRes.json();
-      setHistoryEvents(data.events || []);
-      setHistoryState(data.exhausted ? "exhausted" : "ready");
-    } catch (e) {
-      console.error("Fetch history error:", e);
+    if (isCurrentRequest()) {
+      setHistoryState("loading");
       setHistoryEvents([]);
-      setHistoryState("error");
     }
+    void (async () => {
+      try {
+        const historyRes = await fetch(
+          `/api/calendar/history?year=${date.slice(0, 4)}&month=${date.slice(5, 7)}&day=${date.slice(8, 10)}`,
+          { cache: "no-store" }
+        );
+        if (!historyRes.ok) {
+          throw new Error(`History request failed: ${historyRes.status}`);
+        }
+        const { events, exhausted } = parseHistoryData(await historyRes.json());
+        if (!isCurrentRequest()) return;
+        setHistoryEvents(events);
+        setHistoryState(exhausted ? "exhausted" : "ready");
+      } catch (e) {
+        console.error("Fetch history error:", e);
+        if (!isCurrentRequest()) return;
+        setHistoryEvents([]);
+        setHistoryState("error");
+      }
+    })();
 
     // 播放详情需要登录
     if (!isLoggedIn) {
-      setDayDetail(null);
+      if (isCurrentRequest()) {
+        setDayDetail(null);
+        setLoading(false);
+      }
       return;
     }
 
-    setLoading(true);
-    try {
-      const dayRes = await fetch(`/api/calendar/day?date=${date}`);
-      if (dayRes.ok) {
-        const data = await dayRes.json();
-        setDayDetail(data);
+    if (isCurrentRequest()) setLoading(true);
+    void (async () => {
+      try {
+        const dayRes = await fetch(`/api/calendar/day?date=${date}`);
+        if (dayRes.ok) {
+          const data = await dayRes.json();
+          if (isCurrentRequest()) setDayDetail(data);
+        }
+      } catch (e) {
+        console.error("Fetch day detail error:", e);
+      } finally {
+        if (isCurrentRequest()) setLoading(false);
       }
-    } catch (e) {
-      console.error("Fetch day detail error:", e);
-    } finally {
-      setLoading(false);
-    }
+    })();
   }, [isLoggedIn]);
 
   // 月份变化时重新获取

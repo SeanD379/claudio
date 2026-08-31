@@ -42,16 +42,16 @@ export function HistoryToday({ events, state, month, day }: HistoryTodayProps) {
       </div>
 
       {state === "loading" ? (
-        <div className="flex items-center justify-center gap-2 py-6 text-xs" style={{ color: "#b3b3b3" }}>
+        <div role="status" aria-live="polite" className="flex items-center justify-center gap-2 py-6 text-xs" style={{ color: "#b3b3b3" }}>
           <Loader2 className="w-4 h-4 animate-spin" />
           正在整理这一天的音乐记忆…
         </div>
       ) : state === "error" ? (
-        <p className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
+        <p role="status" aria-live="polite" className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
           历史内容暂时无法获取
         </p>
       ) : state === "exhausted" ? (
-        <p className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
+        <p role="status" aria-live="polite" className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
           暂时没有新的音乐历史事件
         </p>
       ) : state === "ready" && sorted.length > 0 ? (
@@ -110,7 +110,7 @@ export function HistoryToday({ events, state, month, day }: HistoryTodayProps) {
           ))}
         </div>
       ) : state === "ready" ? (
-        <p className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
+        <p role="status" aria-live="polite" className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
           这一天没有音乐历史事件
         </p>
       ) : null}
