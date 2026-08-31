@@ -448,7 +448,7 @@ test("getOrCreateHistoryBatch returns exhausted when every candidate is used", a
   try {
     assert.deepEqual(await getOrCreateHistoryBatch(historyDate), {
       events: [],
-      source: "wikimedia",
+      source: "local",
       saved: false,
       exhausted: true,
     });
