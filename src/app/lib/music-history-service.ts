@@ -63,7 +63,10 @@ export async function getOrCreateHistoryBatch(
   try {
     candidates = await fetchWikimediaCandidates(date);
   } catch (error) {
-    console.error("Fetch Wikimedia history failed:", error);
+    console.error(
+      "Fetch Wikimedia history failed:",
+      error instanceof Error ? error.message : "unknown error",
+    );
   }
 
   if (candidates.length === 0) {
