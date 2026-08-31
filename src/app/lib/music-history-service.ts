@@ -164,6 +164,10 @@ async function fetchWikimediaCandidates(
     );
 
     if (!response.ok) {
+      console.warn("Wikimedia history request failed", {
+        status: response.status,
+        title,
+      });
       return [];
     }
 

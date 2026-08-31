@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Prisma } from "@prisma/client";
 import {
   allocateUnseenCandidates,
   buildHistoryFingerprint,
@@ -8,6 +9,80 @@ import {
   parseMusicHistoryWikitext,
   type HistoryCandidate,
 } from "./music-history";
+
+process.env.DATABASE_URL ??= "mysql://test@127.0.0.1:1/claudio_test";
+
+const { prisma } = await import("./db");
+const { getOrCreateHistoryBatch } = await import("./music-history-service");
+
+interface StoredHistoryEntry {
+  eventYear: number;
+  event: string;
+  artist: string | null;
+  sourceUrl: string | null;
+}
+
+interface UsedFingerprintEntry {
+  fingerprint: string;
+}
+
+interface HistoryEntryCreateInput {
+  data: StoredHistoryEntry & UsedFingerprintEntry;
+}
+
+interface ServicePrisma {
+  musicHistoryEntry: {
+    findMany: (
+      args: unknown,
+    ) => Promise<Array<StoredHistoryEntry | UsedFingerprintEntry>>;
+    create: (args: unknown) => Promise<StoredHistoryEntry>;
+  };
+  $transaction: (operations: unknown[]) => Promise<unknown>;
+}
+
+const servicePrisma = prisma as unknown as ServicePrisma;
+
+function installServiceMocks(
+  findMany: ServicePrisma["musicHistoryEntry"]["findMany"],
+  create: ServicePrisma["musicHistoryEntry"]["create"],
+  transaction: ServicePrisma["$transaction"],
+  fetchStub: typeof fetch,
+) {
+  const originalFindMany = servicePrisma.musicHistoryEntry.findMany;
+  const originalCreate = servicePrisma.musicHistoryEntry.create;
+  const originalTransaction = servicePrisma.$transaction;
+  const originalFetch = globalThis.fetch;
+
+  servicePrisma.musicHistoryEntry.findMany = findMany;
+  servicePrisma.musicHistoryEntry.create = create;
+  servicePrisma.$transaction = transaction;
+  globalThis.fetch = fetchStub;
+
+  return () => {
+    servicePrisma.musicHistoryEntry.findMany = originalFindMany;
+    servicePrisma.musicHistoryEntry.create = originalCreate;
+    servicePrisma.$transaction = originalTransaction;
+    globalThis.fetch = originalFetch;
+  };
+}
+
+function wikiResponse(wikitext: string): Response {
+  return new Response(
+    JSON.stringify({
+      query: {
+        pages: [{ revisions: [{ slots: { main: { content: wikitext } } }] }],
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+}
+
+const historyDate = {
+  displayYear: 2026,
+  month: 8,
+  day: 30,
+  monthDay: "08-30",
+};
 
 test("parseHistoryDate accepts a real calendar date", () => {
   assert.deepEqual(parseHistoryDate("2026", "08", "30"), {
@@ -171,6 +246,193 @@ test("parseMusicHistoryWikitext supports year separators and ignores numbered li
     parseMusicHistoryWikitext(source, "08-30").map((item) => item.eventYear),
     [1960, 1961, 1962, 1963, 1964, 1965],
   );
+});
+
+test("getOrCreateHistoryBatch returns an ordered stored batch without fetching or writing", async () => {
+  const restore = installServiceMocks(
+    async () => [
+      {
+        eventYear: 1970,
+        event: "第二个事件",
+        artist: null,
+        sourceUrl: null,
+      },
+      {
+        eventYear: 1965,
+        event: "第一个事件",
+        artist: "示例音乐人",
+        sourceUrl: "https://example.com/first",
+      },
+    ],
+    async () => {
+      throw new Error("stored batch must not create rows");
+    },
+    async () => {
+      throw new Error("stored batch must not write a transaction");
+    },
+    async () => {
+      throw new Error("stored batch must not fetch");
+    },
+  );
+
+  try {
+    assert.deepEqual(await getOrCreateHistoryBatch(historyDate), {
+      events: [
+        {
+          year: 1970,
+          event: "第二个事件",
+          artist: null,
+          sourceUrl: null,
+        },
+        {
+          year: 1965,
+          event: "第一个事件",
+          artist: "示例音乐人",
+          sourceUrl: "https://example.com/first",
+        },
+      ],
+      source: "stored",
+      saved: true,
+      exhausted: false,
+    });
+  } finally {
+    restore();
+  }
+});
+
+test("getOrCreateHistoryBatch reallocates after P2002 and saves unseen Wikimedia candidates", async () => {
+  const wikitext = `
+* [[1960年]]：歌手甲发行专辑。
+* [[1970年]]：歌手乙发行专辑。
+* [[1980年]]：歌手丙发行专辑。
+`;
+  const conflictingFingerprint = buildHistoryFingerprint(
+    "08-30",
+    1960,
+    "歌手甲发行专辑。",
+  );
+  const persisted: StoredHistoryEntry[] = [];
+  const savedFingerprints: string[] = [];
+  const transactionSizes: number[] = [];
+  let findManyCalls = 0;
+
+  const restore = installServiceMocks(
+    async () => {
+      findManyCalls += 1;
+      if (findManyCalls === 1 || findManyCalls === 2) {
+        return [];
+      }
+      if (findManyCalls === 4) {
+        return [{ fingerprint: conflictingFingerprint }];
+      }
+      if (findManyCalls === 5) {
+        return persisted;
+      }
+
+      throw new Error(`unexpected findMany call ${findManyCalls}`);
+    },
+    async (input) => {
+      const { data } = input as HistoryEntryCreateInput;
+      savedFingerprints.push(data.fingerprint);
+      return data;
+    },
+    async (operations) => {
+      transactionSizes.push(operations.length);
+      if (transactionSizes.length === 1) {
+        throw new Prisma.PrismaClientKnownRequestError("conflict", {
+          code: "P2002",
+          clientVersion: "test",
+        });
+      }
+
+      persisted.push(
+        {
+          eventYear: 1970,
+          event: "歌手乙发行专辑。",
+          artist: null,
+          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
+        },
+        {
+          eventYear: 1980,
+          event: "歌手丙发行专辑。",
+          artist: null,
+          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
+        },
+      );
+    },
+    async () => wikiResponse(wikitext),
+  );
+
+  try {
+    const result = await getOrCreateHistoryBatch(historyDate);
+
+    assert.deepEqual(transactionSizes, [3, 2]);
+    assert.equal(savedFingerprints.includes(conflictingFingerprint), true);
+    assert.equal(
+      savedFingerprints.slice(-2).includes(conflictingFingerprint),
+      false,
+    );
+    assert.deepEqual(result, {
+      events: [
+        {
+          year: 1970,
+          event: "歌手乙发行专辑。",
+          artist: null,
+          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
+        },
+        {
+          year: 1980,
+          event: "歌手丙发行专辑。",
+          artist: null,
+          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
+        },
+      ],
+      source: "wikimedia",
+      saved: true,
+      exhausted: false,
+    });
+  } finally {
+    restore();
+  }
+});
+
+test("getOrCreateHistoryBatch returns exhausted when every candidate is used", async () => {
+  const wikitext = "* [[1960年]]：歌手甲发行专辑。";
+  const usedFingerprint = buildHistoryFingerprint(
+    "08-30",
+    1960,
+    "歌手甲发行专辑。",
+  );
+  let transactionCalled = false;
+  let findManyCalls = 0;
+
+  const restore = installServiceMocks(
+    async () => {
+      findManyCalls += 1;
+      return findManyCalls === 1
+        ? []
+        : [{ fingerprint: usedFingerprint }];
+    },
+    async () => {
+      throw new Error("exhausted batch must not create rows");
+    },
+    async () => {
+      transactionCalled = true;
+    },
+    async () => wikiResponse(wikitext),
+  );
+
+  try {
+    assert.deepEqual(await getOrCreateHistoryBatch(historyDate), {
+      events: [],
+      source: "wikimedia",
+      saved: false,
+      exhausted: true,
+    });
+    assert.equal(transactionCalled, false);
+  } finally {
+    restore();
+  }
 });
 
 function candidate(
