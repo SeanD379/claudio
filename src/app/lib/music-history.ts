@@ -12,6 +12,12 @@ export interface HistoryCandidate {
   fingerprint: string;
 }
 
+export interface LocalHistoryEvent {
+  year: number;
+  event: string;
+  artist?: string | null;
+}
+
 export interface ParsedHistoryDate {
   displayYear: number;
   month: number;
@@ -96,6 +102,25 @@ export function buildHistoryFingerprint(
   return createHash("sha256")
     .update(`${monthDay}|${eventYear}|${normalizeEvent(event)}`)
     .digest("hex");
+}
+
+export function buildLocalCandidates(
+  monthDay: string,
+  events: LocalHistoryEvent[],
+): HistoryCandidate[] {
+  return events.map((item) => {
+    const event = item.event.trim();
+
+    return {
+      eventYear: item.year,
+      event,
+      artist: item.artist ?? null,
+      sourceType: "local",
+      sourceTitle: "Claudio 音乐历史资料",
+      sourceUrl: null,
+      fingerprint: buildHistoryFingerprint(monthDay, item.year, event),
+    };
+  });
 }
 
 export function parseMusicHistoryWikitext(

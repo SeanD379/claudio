@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   allocateUnseenCandidates,
   buildHistoryFingerprint,
+  buildLocalCandidates,
   parseHistoryDate,
   parseMusicHistoryWikitext,
   type HistoryCandidate,
@@ -87,6 +88,25 @@ test("buildHistoryFingerprint uses SHA-256 and normalizes equivalent event text"
     expected,
   );
   assert.equal(buildHistoryFingerprint("08-30", 1965, "abc歌手"), expected);
+});
+
+test("buildLocalCandidates creates local fallback candidates", () => {
+  assert.deepEqual(
+    buildLocalCandidates("08-30", [
+      { year: 1965, event: "  一张重要专辑发行  ", artist: "示例音乐人" },
+    ]),
+    [
+      {
+        eventYear: 1965,
+        event: "一张重要专辑发行",
+        artist: "示例音乐人",
+        sourceType: "local",
+        sourceTitle: "Claudio 音乐历史资料",
+        sourceUrl: null,
+        fingerprint: buildHistoryFingerprint("08-30", 1965, "一张重要专辑发行"),
+      },
+    ],
+  );
 });
 
 test("allocateUnseenCandidates never returns a used fingerprint", () => {
