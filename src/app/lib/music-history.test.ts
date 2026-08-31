@@ -10,10 +10,20 @@ import {
   type HistoryCandidate,
 } from "./music-history";
 
+const originalDatabaseUrl = process.env.DATABASE_URL;
 process.env.DATABASE_URL ??= "mysql://test@127.0.0.1:1/claudio_test";
 
 const { prisma } = await import("./db");
 const { getOrCreateHistoryBatch } = await import("./music-history-service");
+
+test.after(() => {
+  if (originalDatabaseUrl === undefined) {
+    delete process.env.DATABASE_URL;
+    return;
+  }
+
+  process.env.DATABASE_URL = originalDatabaseUrl;
+});
 
 interface StoredHistoryEntry {
   eventYear: number;
@@ -319,7 +329,11 @@ test("getOrCreateHistoryBatch reallocates after P2002 and saves unseen Wikimedia
   const restore = installServiceMocks(
     async () => {
       findManyCalls += 1;
-      if (findManyCalls === 1 || findManyCalls === 2) {
+      if (
+        findManyCalls === 1 ||
+        findManyCalls === 2 ||
+        findManyCalls === 3
+      ) {
         return [];
       }
       if (findManyCalls === 4) {
