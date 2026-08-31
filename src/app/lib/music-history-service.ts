@@ -11,6 +11,7 @@ import {
 } from "@/app/lib/music-history";
 
 const BATCH_SIZE = 3;
+const MAX_P2002_RETRIES = 2;
 const WIKIMEDIA_TIMEOUT_MS = 8000;
 
 export interface HistoryApiEvent {
@@ -87,33 +88,41 @@ export async function getOrCreateHistoryBatch(
     return toResult([], source, false, true);
   }
 
-  try {
-    await saveBatch(date, batch);
-  } catch (error) {
-    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
-      throw error;
+  for (let retries = 0; ; retries += 1) {
+    try {
+      await saveBatch(date, batch);
+      break;
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2002"
+      ) {
+        throw error;
+      }
+
+      const concurrentBatch = await readStoredBatch(date.monthDay, date.displayYear);
+      if (concurrentBatch.length > 0) {
+        return toResult(concurrentBatch, "stored", true, false);
+      }
+
+      if (retries >= MAX_P2002_RETRIES) {
+        throw error;
+      }
+
+      usedEntries = await prisma.musicHistoryEntry.findMany({
+        where: { monthDay: date.monthDay },
+        select: { fingerprint: true },
+      });
+      batch = allocateUnseenCandidates(
+        candidates,
+        new Set(usedEntries.map((entry) => entry.fingerprint)),
+        BATCH_SIZE,
+      );
+
+      if (batch.length === 0) {
+        return toResult([], source, false, true);
+      }
     }
-
-    const concurrentBatch = await readStoredBatch(date.monthDay, date.displayYear);
-    if (concurrentBatch.length > 0) {
-      return toResult(concurrentBatch, "stored", true, false);
-    }
-
-    usedEntries = await prisma.musicHistoryEntry.findMany({
-      where: { monthDay: date.monthDay },
-      select: { fingerprint: true },
-    });
-    batch = allocateUnseenCandidates(
-      candidates,
-      new Set(usedEntries.map((entry) => entry.fingerprint)),
-      BATCH_SIZE,
-    );
-
-    if (batch.length === 0) {
-      return toResult([], source, false, true);
-    }
-
-    await saveBatch(date, batch);
   }
 
   return toResult(
