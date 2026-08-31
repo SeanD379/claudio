@@ -13,8 +13,8 @@ import {
 const originalDatabaseUrl = process.env.DATABASE_URL;
 process.env.DATABASE_URL ??= "mysql://test@127.0.0.1:1/claudio_test";
 
-const { prisma } = await import("./db");
-const { getOrCreateHistoryBatch } = await import("./music-history-service");
+let prisma: typeof import("./db").prisma;
+let getOrCreateHistoryBatch: typeof import("./music-history-service").getOrCreateHistoryBatch;
 
 test.after(() => {
   if (originalDatabaseUrl === undefined) {
@@ -53,7 +53,13 @@ interface ServicePrisma {
   $transaction: (operations: unknown[]) => Promise<unknown>;
 }
 
-const servicePrisma = prisma as unknown as ServicePrisma;
+let servicePrisma: ServicePrisma;
+
+test.before(async () => {
+  ({ prisma } = await import("./db"));
+  ({ getOrCreateHistoryBatch } = await import("./music-history-service"));
+  servicePrisma = prisma as unknown as ServicePrisma;
+});
 
 function installServiceMocks(
   findMany: ServicePrisma["musicHistoryEntry"]["findMany"],
