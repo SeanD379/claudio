@@ -1106,7 +1106,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
     <div className="h-full overflow-y-auto" style={{ background: "#121212" }}>
       <div className="max-w-[1400px] mx-auto px-8 py-8">
         {/* 顶部：当前播放 + 我的歌单 */}
-        <div className="flex gap-6 mb-3">
+        <div className="flex gap-6 mb-8">
           {/* 左侧：当前播放 */}
           <motion.div
             className="flex-[2] rounded-2xl p-6 flex flex-col items-center justify-center"
