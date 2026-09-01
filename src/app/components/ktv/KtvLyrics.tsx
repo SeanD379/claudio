@@ -14,10 +14,10 @@ function useLyricsPosition() {
     const calc = () => {
       const sw = window.innerWidth, sh = window.innerHeight;
       setPos({
-        left: sw * 0.28,
-        top: sh * 0.20,
-        width: sw * 0.44,
-        height: sh * 0.38,
+        left: sw * 0.23,
+        top: sh * 0.14,
+        width: sw * 0.54,
+        height: sh * 0.18,
       });
     };
     calc();
@@ -93,7 +93,8 @@ export function KtvLyrics() {
         {hasLyrics && displayLyric ? (
           <motion.div
             key={currentIndex}
-            className="text-center w-full px-8"
+            className="text-center mx-auto w-full px-6 sm:px-10"
+            style={{ maxWidth: "900px" }}
             initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
@@ -147,7 +148,7 @@ function LedLyricText({ text }: { text: string }) {
       className="font-bold leading-tight"
       style={{
         fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-        fontSize: "clamp(28px, 5vw, 64px)",
+        fontSize: "clamp(24px, 3.8vw, 52px)",
         letterSpacing: "-0.02em",
         color: "rgba(255, 255, 255, 0.95)",
         textShadow: `
