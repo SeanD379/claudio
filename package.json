@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:music-history": "tsx --test src/app/lib/music-history.test.ts"
+    "test:music-history": "tsx --test src/app/lib/music-history.test.ts",
+    "test:ktv-stage": "tsx --test src/app/lib/ktv-stage-motion.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
