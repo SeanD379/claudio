@@ -120,6 +120,9 @@ export const useAudioAnalyzer = create<AnalyzerState>((set, get) => ({
 
         if (audioElement.paused) {
           if (get().isPlaying) {
+            beatTimesMs.length = 0;
+            lastBeatAt = 0;
+            prevEnergy.value = 0;
             set({ isPlaying: false, energy: 0, bass: 0, mid: 0, high: 0, beat: 0, bpm: null, bpmConfident: false, frequency: new Uint8Array(0), freqBoosted: new Uint8Array(0) });
           }
           return;
