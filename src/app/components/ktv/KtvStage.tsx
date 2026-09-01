@@ -26,6 +26,10 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
+function clampUnit(value: number) {
+  return Number.isFinite(value) ? clamp(value, 0, 1) : 0;
+}
+
 function pixel(value: number) {
   return Math.round(value);
 }
@@ -33,8 +37,6 @@ function pixel(value: number) {
 export function KtvStage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
-  const hiddenRef = useRef(false);
-  const reducedMotionRef = useRef(false);
   const drawRef = useRef<((ctx: CanvasRenderingContext2D, w: number, h: number, time: number) => void) | null>(null);
 
   useEffect(() => {
@@ -43,19 +45,23 @@ export function KtvStage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let pageVisible = !document.hidden;
+
     drawRef.current = (drawCtx, w, h, now) => {
       const audio = useAudioAnalyzer.getState();
       const dynamicBg = useTheme.getState().dynamicBg;
-      const isAnimated = dynamicBg && !reducedMotionRef.current;
-      const energy = audio.isPlaying ? audio.energy : 0.3;
-      const bass = audio.isPlaying ? audio.bass : 0;
-      const mid = audio.isPlaying ? audio.mid : 0;
-      const high = audio.isPlaying ? audio.high : 0;
+      const isAnimated = dynamicBg && !media.matches;
+      const energy = clampUnit(audio.energy);
+      const bass = clampUnit(audio.bass);
+      const mid = clampUnit(audio.mid);
+      const high = clampUnit(audio.high);
+      const beat = clampUnit(audio.beat);
       const motion = getStageMotion({ bpm: audio.bpm, bpmConfident: audio.bpmConfident, energy });
       const time = isAnimated ? now * motion.cycleSpeed : 0;
-      const beatPulse = isAnimated && audio.isPlaying ? clamp(audio.beat, 0, 0.35) : 0;
-      const autoMood: MoodType = audio.isPlaying ? audio.mood : "warm";
-      const moodKey: MoodType = useMoodLock.getState().lockedMood || autoMood;
+      const beatPulse = isAnimated && audio.isPlaying ? clamp(beat, 0, 0.35) : 0;
+      const requestedMood = useMoodLock.getState().lockedMood || (audio.isPlaying ? audio.mood : "warm");
+      const moodKey: MoodType = requestedMood in MOOD ? requestedMood : "warm";
       const colors = MOOD[moodKey];
 
       drawCtx.clearRect(0, 0, w, h);
@@ -70,8 +76,29 @@ export function KtvStage() {
       drawVignette(drawCtx, w, h);
     };
 
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const setReducedMotion = () => { reducedMotionRef.current = media.matches; };
+    const drawOnce = () => {
+      drawRef.current?.(ctx, window.innerWidth, window.innerHeight, performance.now() * 0.001);
+    };
+    const stopAnimation = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    };
+    const shouldAnimate = () => pageVisible && useTheme.getState().dynamicBg && !media.matches;
+    const loop = (now: number) => {
+      if (!shouldAnimate()) {
+        stopAnimation();
+        if (pageVisible) drawOnce();
+        return;
+      }
+      drawRef.current?.(ctx, window.innerWidth, window.innerHeight, now * 0.001);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    const reconcileAnimation = () => {
+      stopAnimation();
+      if (!pageVisible) return;
+      drawOnce();
+      if (shouldAnimate()) rafRef.current = requestAnimationFrame(loop);
+    };
     const resize = () => {
       const dpr = Math.max(1, window.devicePixelRatio);
       canvas.width = window.innerWidth * dpr;
@@ -79,26 +106,29 @@ export function KtvStage() {
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (pageVisible) drawOnce();
     };
-    const onVisibilityChange = () => { hiddenRef.current = document.hidden; };
-    const loop = (now: number) => {
-      if (!hiddenRef.current) drawRef.current?.(ctx, window.innerWidth, window.innerHeight, now * 0.001);
-      rafRef.current = requestAnimationFrame(loop);
+    const onVisibilityChange = () => {
+      pageVisible = !document.hidden;
+      reconcileAnimation();
     };
+    const onReducedMotionChange = () => { reconcileAnimation(); };
+    const unsubscribeTheme = useTheme.subscribe((state, previousState) => {
+      if (state.dynamicBg !== previousState.dynamicBg) reconcileAnimation();
+    });
 
-    setReducedMotion();
     resize();
-    onVisibilityChange();
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", onVisibilityChange);
-    media.addEventListener("change", setReducedMotion);
-    rafRef.current = requestAnimationFrame(loop);
+    media.addEventListener("change", onReducedMotionChange);
+    if (shouldAnimate()) rafRef.current = requestAnimationFrame(loop);
 
     return () => {
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      media.removeEventListener("change", setReducedMotion);
-      cancelAnimationFrame(rafRef.current);
+      media.removeEventListener("change", onReducedMotionChange);
+      unsubscribeTheme();
+      stopAnimation();
     };
   }, []);
 
