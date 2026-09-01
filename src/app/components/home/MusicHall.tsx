@@ -1226,9 +1226,6 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                   </p>
                 </div>
 
-                <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-[#18191c]/90 text-white shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:border-white group-hover:bg-white group-hover:text-black">
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-                </div>
               </div>
             </motion.button>
           ))}
