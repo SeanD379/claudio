@@ -3,24 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { usePlayer } from "@/hooks/usePlayer";
-import { useMoodLock } from "@/hooks/useMoodLock";
-import { useAudioAnalyzer, type MoodType } from "@/hooks/useAudioAnalyzer";
 import { useKtvQueue } from "@/hooks/useKtvQueue";
 
 interface KtvPlayerProps {
   onSongSelect?: () => void;
   onQueueToggle?: () => void;
 }
-
-// 6 种舞美风格
-const MOOD_OPTIONS: { key: MoodType; label: string; color: string }[] = [
-  { key: "minimal", label: "月光", color: "rgb(160,180,220)" },
-  { key: "warm",    label: "暖阳", color: "rgb(240,190,120)" },
-  { key: "cyber",   label: "玫瑰", color: "rgb(220,130,170)" },
-  { key: "tech",    label: "冰蓝", color: "rgb(100,170,230)" },
-  { key: "redGold", label: "琥珀", color: "rgb(230,160,80)" },
-  { key: "rainbow", label: "紫晶", color: "rgb(170,130,210)" },
-];
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60);
@@ -48,12 +36,7 @@ export function KtvPlayer({ onSongSelect, onQueueToggle }: KtvPlayerProps) {
   const setVolume = usePlayer((s) => s.setVolume);
   const seekTo = usePlayer((s) => s.seekTo);
 
-  // 舞美效果锁定
-  const lockedMood = useMoodLock((s) => s.lockedMood);
   const queueCount = useKtvQueue((s) => s.queue.length);
-  const toggleLock = useMoodLock((s) => s.toggleLock);
-  const autoMood = useAudioAnalyzer((s) => s.mood);
-  const currentMood = lockedMood || autoMood;
 
   const show = useCallback(() => {
     clearTimeout(hideTimer.current);
@@ -179,58 +162,6 @@ export function KtvPlayer({ onSongSelect, onQueueToggle }: KtvPlayerProps) {
             >
               {formatTime(hoverTime)}
             </div>
-          )}
-        </div>
-
-        {/* 舞美效果选择器 */}
-        <div className="flex items-center gap-1 mb-2 mx-0.5">
-          <span className="text-white/30 text-[10px] mr-1">舞美</span>
-          {MOOD_OPTIONS.map((mood) => {
-            const isActive = currentMood === mood.key;
-            const isLocked = lockedMood === mood.key;
-            return (
-              <button
-                key={mood.key}
-                onClick={() => toggleLock(mood.key)}
-                className="relative flex items-center gap-1 px-1.5 py-0.5 rounded-full transition-all duration-200"
-                style={{
-                  background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
-                  border: isLocked ? `1px solid ${mood.color}` : "1px solid transparent",
-                }}
-                title={isLocked ? `${mood.label}（已锁定，点击解锁）` : `切换到${mood.label}`}
-              >
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{
-                    background: mood.color,
-                    opacity: isActive ? 1 : 0.35,
-                    boxShadow: isActive ? `0 0 6px ${mood.color}` : "none",
-                  }}
-                />
-                <span
-                  className="text-[9px]"
-                  style={{
-                    color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)",
-                  }}
-                >
-                  {mood.label}
-                </span>
-                {isLocked && (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="rgba(255,255,255,0.5)">
-                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM12 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/>
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-          {lockedMood && (
-            <button
-              onClick={() => toggleLock(lockedMood)}
-              className="text-[9px] text-white/30 hover:text-white/60 ml-1 transition-colors"
-              title="解锁，恢复自动"
-            >
-              自动
-            </button>
           )}
         </div>
 

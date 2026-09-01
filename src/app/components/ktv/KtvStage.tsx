@@ -4,7 +4,9 @@ import { useEffect, useRef } from "react";
 import { useAudioAnalyzer, type MoodType } from "@/hooks/useAudioAnalyzer";
 import { useMoodLock } from "@/hooks/useMoodLock";
 import { useTheme } from "@/hooks/useTheme";
+import { usePlayer } from "@/hooks/usePlayer";
 import { getStageMotion } from "@/app/lib/ktv-stage-motion";
+import { extractColorsFromImage } from "@/app/lib/colorExtractor";
 
 const MOOD: Record<MoodType, { primary: number[]; secondary: number[]; accent: number[] }> = {
   minimal: { primary: [140, 160, 210], secondary: [100, 120, 170], accent: [190, 200, 230] },
@@ -34,10 +36,38 @@ function pixel(value: number) {
   return Math.round(value);
 }
 
+function blendColors(current: Colors, target: Colors, amount: number): Colors {
+  const mix = (from: number[], to: number[]) => from.map((value, index) => value + (to[index] - value) * amount);
+  return {
+    primary: mix(current.primary, target.primary),
+    secondary: mix(current.secondary, target.secondary),
+    accent: mix(current.accent, target.accent),
+  };
+}
+
 export function KtvStage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const coverUrl = usePlayer((state) => state.currentSong?.coverUrl);
+  const stageImageRef = useRef<HTMLImageElement | null>(null);
+  const stageColorsRef = useRef<Colors>(MOOD.warm);
+  const stageColorTargetRef = useRef<Colors>(MOOD.warm);
+  const hasCoverRef = useRef(Boolean(coverUrl));
   const rafRef = useRef(0);
   const drawRef = useRef<((ctx: CanvasRenderingContext2D, w: number, h: number, time: number) => void) | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    hasCoverRef.current = Boolean(coverUrl);
+    if (!coverUrl) {
+      stageColorTargetRef.current = MOOD.warm;
+      return () => { cancelled = true; };
+    }
+
+    extractColorsFromImage(coverUrl).then((colors) => {
+      if (!cancelled) stageColorTargetRef.current = colors;
+    });
+    return () => { cancelled = true; };
+  }, [coverUrl]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -62,18 +92,28 @@ export function KtvStage() {
       const beatPulse = isAnimated && audio.isPlaying ? clamp(beat, 0, 0.35) : 0;
       const requestedMood = useMoodLock.getState().lockedMood || (audio.isPlaying ? audio.mood : "warm");
       const moodKey: MoodType = requestedMood in MOOD ? requestedMood : "warm";
-      const colors = MOOD[moodKey];
+      const fallbackColors = MOOD[moodKey];
+      if (!hasCoverRef.current) stageColorTargetRef.current = fallbackColors;
+      stageColorsRef.current = blendColors(stageColorsRef.current, stageColorTargetRef.current, isAnimated ? 0.035 : 1);
+      const colors = stageColorsRef.current;
 
       drawCtx.clearRect(0, 0, w, h);
-      drawStageBackground(drawCtx, w, h, colors, bass);
-      drawLyricHalo(drawCtx, w, h, colors, bass, beatPulse, motion.density);
-      drawLightBeams(drawCtx, w, h, time, colors, mid, beatPulse, motion.density);
-      drawCircularStage(drawCtx, w, h, colors, bass, beatPulse);
-      drawMusicians(drawCtx, w, h, colors);
-      drawSinger(drawCtx, w, h, colors, beatPulse);
-      drawAudience(drawCtx, w, h, colors, beatPulse, motion.density);
-      if (isAnimated) drawParticles(drawCtx, w, h, time, colors, high, motion);
-      drawVignette(drawCtx, w, h);
+      const hasReferenceStage = Boolean(stageImageRef.current?.complete && stageImageRef.current.naturalWidth);
+      if (hasReferenceStage && stageImageRef.current) {
+        drawReferenceStage(drawCtx, stageImageRef.current, w, h);
+      } else {
+        drawStageBackground(drawCtx, w, h, colors, bass);
+        drawCircularStage(drawCtx, w, h, colors, bass, beatPulse);
+        drawMusicians(drawCtx, w, h, colors);
+        drawSinger(drawCtx, w, h, colors, beatPulse);
+        drawAudience(drawCtx, w, h, colors, beatPulse, motion.density);
+        drawLyricHalo(drawCtx, w, h, colors, bass, beatPulse, motion.density);
+      }
+      if (!hasReferenceStage) {
+        drawLightBeams(drawCtx, w, h, time, colors, mid, beatPulse, motion.density);
+        if (isAnimated) drawParticles(drawCtx, w, h, time, colors, high, motion);
+        drawVignette(drawCtx, w, h);
+      }
     };
 
     const drawOnce = () => {
@@ -83,7 +123,7 @@ export function KtvStage() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = 0;
     };
-    const shouldAnimate = () => pageVisible && useTheme.getState().dynamicBg && !media.matches;
+    const shouldAnimate = () => pageVisible && useTheme.getState().dynamicBg && !media.matches && !stageImageRef.current?.naturalWidth;
     const loop = (now: number) => {
       if (!shouldAnimate()) {
         stopAnimation();
@@ -117,6 +157,11 @@ export function KtvStage() {
       if (state.dynamicBg !== previousState.dynamicBg) reconcileAnimation();
     });
 
+    const stageImage = new Image();
+    stageImageRef.current = stageImage;
+    stageImage.onload = reconcileAnimation;
+    stageImage.src = "/ktv/immersive-stage-reference.png";
+
     resize();
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -129,10 +174,25 @@ export function KtvStage() {
       media.removeEventListener("change", onReducedMotionChange);
       unsubscribeTheme();
       stopAnimation();
+      stageImage.onload = null;
     };
   }, []);
 
   return <canvas ref={canvasRef} style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 1 }} />;
+}
+
+function drawReferenceStage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  w: number,
+  h: number,
+) {
+  const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+  const drawW = image.naturalWidth * scale;
+  const drawH = image.naturalHeight * scale;
+  const drawX = (w - drawW) / 2;
+  const drawY = (h - drawH) / 2;
+  ctx.drawImage(image, drawX, drawY, drawW, drawH);
 }
 
 function drawStageBackground(ctx: CanvasRenderingContext2D, w: number, h: number, colors: Colors, bass: number) {

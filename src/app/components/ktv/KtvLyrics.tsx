@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/hooks/usePlayer";
 import { useLyrics } from "@/hooks/useLyrics";
 import { useAudioAnalyzer } from "@/hooks/useAudioAnalyzer";
 
-// 计算中央 LED 大屏在屏幕上的 CSS 定位（与 Canvas 绘制坐标一致）
+// 计算上方环形电子屏的 CSS 定位（与参考舞台画面一致）
 function useLyricsPosition() {
   const [pos, setPos] = useState({ left: 0, top: 0, width: 0, height: 0 });
 
@@ -14,10 +14,10 @@ function useLyricsPosition() {
     const calc = () => {
       const sw = window.innerWidth, sh = window.innerHeight;
       setPos({
-        left: sw * 0.23,
-        top: sh * 0.14,
-        width: sw * 0.54,
-        height: sh * 0.18,
+        left: sw * 0.14,
+        top: sh * 0.07,
+        width: sw * 0.72,
+        height: sh * 0.16,
       });
     };
     calc();
@@ -30,7 +30,6 @@ function useLyricsPosition() {
 
 export function KtvLyrics() {
   const currentSong = usePlayer((s) => s.currentSong);
-  const isPlaying = usePlayer((s) => s.isPlaying);
   const { lyrics, currentIndex, hasLyrics, isLoading, fetchLyrics, reset } = useLyrics();
   const [displayLyric, setDisplayLyric] = useState("");
   const prevIndexRef = useRef(-1);
@@ -69,7 +68,7 @@ export function KtvLyrics() {
   useEffect(() => {
     if (currentIndex !== prevIndexRef.current && currentIndex >= 0) {
       const text = lyrics[currentIndex]?.text || "";
-      setTimeout(() => setDisplayLyric(text), 150);
+      setDisplayLyric(text);
     }
     prevIndexRef.current = currentIndex;
   }, [currentIndex, lyrics]);
@@ -93,14 +92,13 @@ export function KtvLyrics() {
         {hasLyrics && displayLyric ? (
           <motion.div
             key={currentIndex}
-            className="text-center mx-auto w-full px-2 sm:px-10"
-            style={{ maxWidth: "900px" }}
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            className="w-full"
+            initial={{ opacity: 0, y: 5, filter: "blur(2px)" }}
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
-            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+            exit={{ opacity: 0, y: -4, filter: "blur(2px)" }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
           >
-            <LedLyricText text={displayLyric} />
+            <RingLyricText text={displayLyric} />
           </motion.div>
         ) : isLoading ? (
           <motion.div
@@ -128,39 +126,35 @@ export function KtvLyrics() {
         ) : null}
       </AnimatePresence>
 
-      {/* 歌曲信息（左下角） */}
-      <div className="absolute bottom-2 left-4">
-        <p className="text-white/20 text-xs tracking-wide">
-          {currentSong.title} - {currentSong.artist}
-        </p>
-      </div>
     </div>
   );
 }
 
-// LED屏幕风格的歌词文字
-function LedLyricText({ text }: { text: string }) {
+function RingLyricText({ text }: { text: string }) {
   const audio = useAudioAnalyzer.getState();
   const energy = audio.isPlaying ? audio.energy : 0.3;
+  const fontSize = 58;
+  const isCjk = /[\u3400-\u9fff]/.test(text);
+  const textLength = Math.min(920, Math.max(360, text.length * fontSize * (isCjk ? 0.94 : 0.54)));
 
   return (
-    <p
-      className="font-bold leading-tight"
-      style={{
-        fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-        fontSize: "clamp(18px, 3.8vw, 52px)",
-        letterSpacing: "-0.02em",
-        color: "rgba(255, 255, 255, 0.95)",
-        textShadow: `
-          0 0 20px rgba(255, 255, 255, ${0.3 + energy * 0.3}),
-          0 0 40px rgba(${audio.mood === "tech" ? "100, 150, 255" : "255, 200, 100"}, ${0.2 + energy * 0.2}),
-          0 0 80px rgba(${audio.mood === "tech" ? "100, 150, 255" : "255, 200, 100"}, ${0.1 + energy * 0.1})
-        `,
-        wordBreak: "break-word",
-        WebkitTextStroke: "0.5px rgba(255, 255, 255, 0.1)",
-      }}
-    >
-      {text}
-    </p>
+    <svg viewBox="0 0 1000 180" className="block h-full w-full overflow-visible" aria-label={text} role="img">
+      <defs>
+        <path id="ktv-ring-lyric-path" d="M 45 117 Q 500 57 955 117" fill="none" />
+      </defs>
+      <text
+        fontFamily="Inter, 'Helvetica Neue', Arial, sans-serif"
+        fontSize={fontSize}
+        fontWeight="700"
+        fill="rgba(255, 255, 255, 0.94)"
+        stroke="rgba(255, 214, 166, 0.17)"
+        strokeWidth="0.65"
+        style={{ filter: `drop-shadow(0 0 7px rgba(255,255,255,${0.2 + energy * 0.16})) drop-shadow(0 0 16px rgba(255,180,100,${0.09 + energy * 0.1}))` }}
+      >
+        <textPath href="#ktv-ring-lyric-path" startOffset="50%" textAnchor="middle" textLength={textLength} lengthAdjust="spacingAndGlyphs">
+          {text}
+        </textPath>
+      </text>
+    </svg>
   );
 }

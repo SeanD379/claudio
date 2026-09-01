@@ -10,18 +10,13 @@ import { ModeSwitcher } from "./components/home/ModeSwitcher";
 import { MusicHall } from "./components/home/MusicHall";
 import { KtvStage } from "./components/ktv/KtvStage";
 import { KtvLyrics } from "./components/ktv/KtvLyrics";
-import { KtvPlayer } from "./components/ktv/KtvPlayer";
 import { KtvOpening } from "./components/ktv/KtvOpening";
-import { KtvSongSelect } from "./components/ktv/KtvSongSelect";
-import { KtvQueue } from "./components/ktv/KtvQueue";
 import { CircularPlaylist } from "./components/home/CircularPlaylist";
 import { usePlayer } from "@/hooks/usePlayer";
-import { useKtvQueue } from "@/hooks/useKtvQueue";
 import { useNarration } from "@/hooks/useNarration";
 import { useMode } from "@/hooks/useMode";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useAudioAnalyzer } from "@/hooks/useAudioAnalyzer";
-import { initKtvTransitionListener } from "@/hooks/useKtvTransition";
 import { useAuthContext } from "./components/auth/AuthProvider";
 
 const FloatingAvatar = dynamic(() => import("./components/home/FloatingAvatar").then(m => ({ default: m.FloatingAvatar })), { ssr: false });
@@ -33,16 +28,11 @@ export default function Home() {
   const analyzerInit = useRef(false);
   const { isLoggedIn, isLoading, showLoginModal, checkAuth } = useAuthContext();
 
-  // KTV 点歌/队列面板状态
-  const [songSelectOpen, setSongSelectOpen] = useState(false);
-  const [queueOpen, setQueueOpen] = useState(false);
-  const originalNextSongRef = useRef<(() => void) | null>(null);
-
-  // KTV 开场过渡状态
+  // 演唱会开场过渡状态
   const [showOpening, setShowOpening] = useState(false);
   const [openingDone, setOpeningDone] = useState(() => {
     // 本次会话已看过开场则跳过
-    return typeof window !== "undefined" && sessionStorage.getItem("claudio-ktv-opening-seen") === "1";
+    return typeof window !== "undefined" && sessionStorage.getItem("claudio-concert-opening-seen") === "1";
   });
 
   // 旁白回调
@@ -64,43 +54,11 @@ export default function Home() {
   // 注册旁白系统
   useNarration(handleNarration);
 
-  // 进入KTV模式时初始化音频分析器和转场系统，并设置队列联动
+  // 进入演唱会模式时初始化音频分析器
   useEffect(() => {
-    if (mode !== "ktv") {
-      // 退出KTV时恢复原始 nextSong
-      if (originalNextSongRef.current) {
-        usePlayer.setState({
-          nextSong: originalNextSongRef.current,
-          onPlaylistEnd: null,
-        });
-        originalNextSongRef.current = null;
-      }
-      return;
-    }
-
-    // 保存原始 nextSong，覆盖为队列优先版本
-    if (!originalNextSongRef.current) {
-      originalNextSongRef.current = usePlayer.getState().nextSong;
-    }
-    usePlayer.setState({
-      nextSong: () => {
-        const next = useKtvQueue.getState().playNext();
-        if (next) {
-          usePlayer.getState().playSong(next);
-        } else {
-          originalNextSongRef.current?.();
-        }
-      },
-      onPlaylistEnd: () => {
-        const next = useKtvQueue.getState().playNext();
-        if (next) {
-          usePlayer.getState().playSong(next);
-        }
-      },
-    });
+    if (mode !== "concert") return;
 
     if (analyzerInit.current) return;
-    initKtvTransitionListener();
 
     const tryInit = () => {
       const playerState = usePlayer.getState();
@@ -126,9 +84,9 @@ export default function Home() {
     }
   }, [mode]);
 
-  // 首次进入 KTV 模式时触发开场过渡
+  // 首次进入演唱会模式时触发开场过渡
   useEffect(() => {
-    if (mode !== "ktv" || openingDone) {
+    if (mode !== "concert" || openingDone) {
       setShowOpening(false);
       return;
     }
@@ -203,7 +161,7 @@ export default function Home() {
             className="text-xl font-bold tracking-widest uppercase"
             style={{
               fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-              color: mode === "ktv" ? "rgba(255,255,255,0.6)" : "var(--text-primary)",
+              color: mode === "concert" ? "rgba(255,255,255,0.6)" : "var(--text-primary)",
               letterSpacing: "0.15em",
             }}
           >
@@ -282,35 +240,27 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* KTV 开场过渡 — 覆盖在当前内容之上 */}
+      {/* 演唱会开场过渡 — 覆盖在当前内容之上 */}
       {showOpening && (
         <KtvOpening
           onDone={() => {
             setShowOpening(false);
             setOpeningDone(true);
-            sessionStorage.setItem("claudio-ktv-opening-seen", "1");
+            sessionStorage.setItem("claudio-concert-opening-seen", "1");
           }}
         />
       )}
 
-      {/* KTV 模式 — 开场完成后渲染 */}
-      {mode === "ktv" && openingDone && (
+      {/* 演唱会模式 — 开场完成后渲染 */}
+      {mode === "concert" && openingDone && (
         <>
           <KtvStage />
           <KtvLyrics />
-          <KtvPlayer
-            onSongSelect={() => {
-              // 未登录时显示登录弹窗
-              if (!isLoggedIn) {
-                showLoginModal();
-                return;
-              }
-              setSongSelectOpen(true);
-            }}
-            onQueueToggle={() => setQueueOpen((v) => !v)}
-          />
-          <KtvSongSelect isOpen={songSelectOpen} onClose={() => setSongSelectOpen(false)} />
-          <KtvQueue isOpen={queueOpen} onClose={() => setQueueOpen(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6 pointer-events-none">
+            <div className="pointer-events-auto">
+              <Player />
+            </div>
+          </div>
         </>
       )}
     </div>

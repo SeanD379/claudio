@@ -228,20 +228,20 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
   );
 
   const features = [
-    { id: "daily", label: "DAILY", title: "每日推荐", icon: Radio,
+    { id: "daily", number: "01", label: "DAILY", title: "每日推荐", description: "让今天从一首新歌开始", icon: Radio,
       gradient: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
       glow: "rgba(124, 58, 237, 0.3)",
       action: () => router.push("/recommend/daily") },
-    { id: "calendar", label: "CALENDAR", title: "音乐日历", icon: Calendar,
+    { id: "calendar", number: "02", label: "CALENDAR", title: "音乐日历", description: "记录每一天的声音轨迹", icon: Calendar,
       gradient: "linear-gradient(135deg, #10b981 0%, #0d9488 100%)",
       glow: "rgba(16, 185, 129, 0.3)",
       subtitle: todayStats && todayStats.songCount > 0 ? `今天听了 ${todayStats.songCount} 首歌` : "记录你的音乐足迹",
       action: () => router.push("/calendar") },
-    { id: "mood", label: "MOOD", title: "心情电台", icon: Disc3,
+    { id: "mood", number: "03", label: "MOOD", title: "心情电台", description: "让情绪决定下一首歌", icon: Disc3,
       gradient: "linear-gradient(135deg, #f43f5e 0%, #ec4899 100%)",
       glow: "rgba(244, 63, 94, 0.3)",
       action: () => setShowMoodRadio(true) },
-    { id: "settings", label: "SETTINGS", title: "设置", icon: Settings,
+    { id: "settings", number: "04", label: "SETTINGS", title: "设置", description: "调整属于你的聆听方式", icon: Settings,
       gradient: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)",
       glow: "rgba(59, 130, 246, 0.3)",
       action: () => setShowSettings(true) },
@@ -374,7 +374,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                     <span className="text-xs font-medium" style={{ color: "#b3b3b3" }}>K歌次数</span>
                   </div>
                   <p className="text-xl font-bold" style={{ color: "#ffffff" }}>8 次</p>
-                  <p className="text-xs mt-1" style={{ color: "#666" }}>KTV模式演唱</p>
+                  <p className="text-xs mt-1" style={{ color: "#666" }}>演唱会模式演唱</p>
                 </div>
               </div>
             </motion.div>
@@ -1182,40 +1182,52 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
         </div>
 
         {/* 中部：功能卡片 */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {features.map((feature, index) => (
             <motion.button
               key={feature.id}
-              className="group relative rounded-2xl p-5 text-left overflow-hidden"
-              style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.06)" }}
+              aria-label={`打开${feature.title}`}
+              className="group relative min-h-[224px] overflow-hidden rounded-[28px] p-5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121212]"
+              style={{
+                background: `linear-gradient(145deg, ${feature.glow} 0%, rgba(29,30,34,0.98) 44%, #151619 100%)`,
+                border: "1px solid rgba(255,255,255,0.1)",
+                boxShadow: "0 14px 34px rgba(0,0,0,0.24)",
+              }}
               onClick={feature.action}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 + index * 0.05 }}
-              whileHover={{ borderColor: "rgba(255,255,255,0.12)" }}
+              whileHover={{ y: -6, borderColor: "rgba(255,255,255,0.22)", boxShadow: `0 22px 44px ${feature.glow}` }}
+              whileTap={{ scale: 0.98 }}
             >
-              {/* 底部渐变光晕 */}
+              {/* Chromatic Vinyl：唱片圆环与精确网格构图 */}
               <div
-                className="absolute bottom-0 left-0 right-0 h-24 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{ background: `radial-gradient(ellipse at bottom, ${feature.glow} 0%, transparent 70%)` }}
+                className="absolute inset-0 opacity-[0.08]"
+                style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)", backgroundSize: "32px 32px" }}
               />
-              {/* 右上角装饰圆 */}
               <div
-                className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity duration-500"
-                style={{ background: feature.gradient }}
+                className="absolute -right-8 -bottom-10 h-40 w-40 rounded-full border border-white/15 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-12"
+                style={{ boxShadow: `inset 0 0 0 24px ${feature.glow}, inset 0 0 0 25px rgba(255,255,255,.1)` }}
               />
-              <div className="relative z-10 flex flex-col h-full">
-                <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "#666" }}>{feature.label}</p>
-                <h3 className="text-lg font-bold" style={{ color: "#ffffff" }}>{feature.title}</h3>
-                {"subtitle" in feature && feature.subtitle && (
-                  <p className="text-xs mt-1" style={{ color: "#1ed760" }}>{feature.subtitle}</p>
-                )}
-                <div className="flex-1" />
-                <div
-                  className="w-11 h-11 rounded-xl mt-2 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:-translate-y-0.5 transition-all duration-300"
-                  style={{ background: feature.gradient }}
-                >
-                  <feature.icon className="w-5 h-5 text-white" />
+              <div className="relative z-10 flex h-full flex-col">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold tracking-[0.24em] uppercase text-white/60">{feature.label}</p>
+                  <span className="font-mono text-[10px] tracking-widest text-white/35">{feature.number}</span>
+                </div>
+
+                <div className="mt-6 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] backdrop-blur-md transition-transform duration-300 group-hover:scale-110" style={{ boxShadow: `0 10px 26px ${feature.glow}` }}>
+                  <feature.icon className="h-5 w-5 text-white" />
+                </div>
+
+                <div className="mt-auto max-w-[72%]">
+                  <h3 className="text-[21px] font-semibold tracking-tight text-white">{feature.title}</h3>
+                  <p className="mt-1.5 text-xs leading-5 text-white/55">
+                    {"subtitle" in feature && feature.subtitle ? feature.subtitle : feature.description}
+                  </p>
+                </div>
+
+                <div className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-[#18191c]/90 text-white shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:border-white group-hover:bg-white group-hover:text-black">
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                 </div>
               </div>
             </motion.button>

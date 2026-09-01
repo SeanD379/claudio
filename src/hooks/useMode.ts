@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type AppMode = "listen" | "ktv";
+export type AppMode = "listen" | "concert";
 
 interface ModeState {
   mode: AppMode;
@@ -27,8 +27,9 @@ export const useMode = create<ModeState>((set) => ({
 export function restoreMode(): void {
   try {
     const saved = localStorage.getItem("claudio-mode");
-    if (saved === "listen" || saved === "ktv") {
-      useMode.setState({ mode: saved, showHall: saved === "listen" });
+    if (saved === "listen" || saved === "concert" || saved === "ktv") {
+      const mode = saved === "ktv" ? "concert" : saved;
+      useMode.setState({ mode, showHall: mode === "listen" });
     }
   } catch {}
 }

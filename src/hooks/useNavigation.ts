@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type ModuleId = "home" | "calendar" | "daily" | "mood" | "ktv";
+export type ModuleId = "home" | "calendar" | "daily" | "mood" | "concert";
 
 interface NavigationState {
   // 来源模块（用户从哪个模块进入播放器）

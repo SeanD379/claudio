@@ -9,7 +9,7 @@ import { Headphones, Mic, Home } from "lucide-react";
 
 const modes = [
   { id: "listen" as AppMode, label: "听歌", icon: Headphones },
-  { id: "ktv" as AppMode, label: "KTV", icon: Mic },
+  { id: "concert" as AppMode, label: "演唱会", icon: Mic },
   { id: "home" as const, label: "回到主页", icon: Home },
 ];
 
@@ -40,7 +40,7 @@ export function ModeSwitcher() {
       return;
     }
     setMode(id as AppMode);
-    if (id === "ktv") setShowHall(false);
+    if (id === "concert") setShowHall(false);
   };
 
   return (
