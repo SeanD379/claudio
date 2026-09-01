@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { estimateBpm } from "@/app/lib/ktv-stage-motion";
 import { usePlayer } from "./usePlayer";
 
 export type MoodType = "tech" | "warm" | "redGold" | "minimal" | "cyber" | "rainbow";
@@ -16,6 +17,10 @@ export interface AudioData {
   high: number;
   // 节拍检测 (0-1, 基于能量变化)
   beat: number;
+  // BPM 是稳定节拍间隔估算值
+  bpm: number | null;
+  // BPM 置信度控制舞台速度
+  bpmConfident: boolean;
   // 当前判断的情绪
   mood: MoodType;
   // 是否有音频在播放
@@ -80,6 +85,8 @@ export const useAudioAnalyzer = create<AnalyzerState>((set, get) => ({
   mid: 0,
   high: 0,
   beat: 0,
+  bpm: null,
+  bpmConfident: false,
   mood: "tech",
   isPlaying: false,
   frequency: new Uint8Array(0),
@@ -104,6 +111,8 @@ export const useAudioAnalyzer = create<AnalyzerState>((set, get) => ({
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       const prevEnergy = { value: 0 };
+      const beatTimesMs: number[] = [];
+      let lastBeatAt = 0;
 
       // 动画循环分析音频
       const analyze = () => {
@@ -111,7 +120,7 @@ export const useAudioAnalyzer = create<AnalyzerState>((set, get) => ({
 
         if (audioElement.paused) {
           if (get().isPlaying) {
-            set({ isPlaying: false, energy: 0, bass: 0, mid: 0, high: 0, beat: 0, frequency: new Uint8Array(0), freqBoosted: new Uint8Array(0) });
+            set({ isPlaying: false, energy: 0, bass: 0, mid: 0, high: 0, beat: 0, bpm: null, bpmConfident: false, frequency: new Uint8Array(0), freqBoosted: new Uint8Array(0) });
           }
           return;
         }
@@ -142,6 +151,13 @@ export const useAudioAnalyzer = create<AnalyzerState>((set, get) => ({
         const energyDelta = Math.abs(energy - prevEnergy.value);
         const beat = Math.min(1, energyDelta * 5);
         prevEnergy.value = energy;
+        const now = performance.now();
+        if (beat >= 0.45 && now - lastBeatAt >= 250) {
+          lastBeatAt = now;
+          beatTimesMs.push(now);
+          if (beatTimesMs.length > 12) beatTimesMs.shift();
+        }
+        const { bpm, confident: bpmConfident } = estimateBpm(beatTimesMs);
 
         // 情绪判断
         const mood = detectMood(energy, bass, mid, high);
@@ -164,6 +180,8 @@ export const useAudioAnalyzer = create<AnalyzerState>((set, get) => ({
           mid,
           high,
           beat,
+          bpm,
+          bpmConfident,
           mood,
           isPlaying: true,
           frequency: new Uint8Array(dataArray),
