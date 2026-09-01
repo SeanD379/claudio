@@ -93,7 +93,7 @@ export function KtvLyrics() {
         {hasLyrics && displayLyric ? (
           <motion.div
             key={currentIndex}
-            className="text-center mx-auto w-full px-6 sm:px-10"
+            className="text-center mx-auto w-full px-2 sm:px-10"
             style={{ maxWidth: "900px" }}
             initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
@@ -148,7 +148,7 @@ function LedLyricText({ text }: { text: string }) {
       className="font-bold leading-tight"
       style={{
         fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-        fontSize: "clamp(24px, 3.8vw, 52px)",
+        fontSize: "clamp(18px, 3.8vw, 52px)",
         letterSpacing: "-0.02em",
         color: "rgba(255, 255, 255, 0.95)",
         textShadow: `
