@@ -1,81 +1,84 @@
-# Immersive Stage Prototype Design
+# 沉浸式演唱会舞台原型设计
 
-## Goal
+## 目标
 
-Replace the listen-mode silk background with a lightweight, pixel-art 360-degree concert stage that feels alive while music plays. The prototype proves the visual experience before the full sound-effect preset system is built.
+把听歌模式现在的丝绸背景，替换成一个轻量、像素风的 360° 演唱会舞台。它在歌曲播放时会有生命力，但不会影响页面流畅度。
 
-## Scope
+这次先做“能看见实际效果”的原型，用来验证体验；完整的十套音效预设以后再单独开发。
 
-Included:
+## 本次会做什么
 
-- One pixel-art 360-degree circular stage background with a blank overhead halo reserved for DOM-rendered lyrics.
-- Album-cover-derived stage colors, constrained to readable warm/dark tones.
-- Three animation classes: slow lighting loop, beat/low-frequency response, and sparse pixel particles.
-- The existing `dynamicBg` setting as the single on/off switch.
-- Reduced-motion, hidden-tab, pause, and mobile performance fallbacks.
+- 一张 360° 圆形舞台的像素风背景：上方有环形歌词屏，舞台中央是歌手，外圈有乐手。
+- 舞台灯光颜色跟随歌曲封面主色和辅色变化，但会自动控制亮度，避免刺眼或影响歌词阅读。
+- 三类动态：缓慢变化的灯光、跟随低频/节拍的舞台响应、少量像素粒子。
+- 继续使用现有的“动态背景”开关，用户可一键关闭。
+- 支持“减少动态效果”、暂停、隐藏页面和手机端的性能降级。
 
-Excluded:
+## 本次不做什么
 
-- True Dolby Atmos or hardware spatial audio claims.
-- The ten EQ presets and their final settings UI.
-- Three.js/WebGL scenes, video backgrounds, live artist imagery, or new backend APIs.
+- 不宣称 Dolby Atmos 或硬件级空间音频。
+- 不实现十种 EQ 音效预设及其完整设置面板。
+- 不上 Three.js/WebGL、不使用视频背景、不使用真实艺人素材，也不新增后端接口。
 
-## Alternatives Considered
+## 方案对比
 
-1. Static image with CSS color overlay: fastest but does not respond to music.
-2. **Layered 2D stage (selected):** static pixel-art base plus CSS and Canvas effects driven by the existing audio analyser. This delivers a convincing live stage at controlled cost.
-3. Three.js/WebGL stage: richer depth but adds rendering, battery, and mobile-risk costs that do not help validate the first experience.
+1. 静态图片加颜色遮罩：最快，但不会真正跟着音乐动。
+2. **分层 2D 舞台（采用）：** 像素舞台底图叠加 CSS、Canvas 和现有音频分析数据。效果够沉浸，性能风险可控。
+3. Three.js/WebGL 舞台：层次最丰富，但开发、耗电和手机端风险都较高，不适合先验证体验。
 
-## Visual Composition
+## 画面布局
 
-The stage base places the overhead lyric halo in the upper 12-35% of the viewport. The circular main stage occupies approximately 30-52%, with one singer on the inner platform and a compact band on the outer ring. The central-lower area remains quiet for visual breathing; the lower 20% remains suitable for the current player card.
+- 环形歌词屏：画面上方约 12%–35%，深色区域由网页真实歌词显示。
+- 圆形舞台：约 30%–52%，内圈只有歌手，外圈放紧凑的乐队。
+- 中下方：保持安静、低纹理，给画面呼吸感。
+- 最下方约 20%：继续留给现在的播放器卡片。
 
-The lyric halo is not image text. The existing lyric component will be repositioned to the halo display region and remains real DOM text, so lyric synchronization, accessibility, and responsive typography are retained.
+歌词不会写死在背景图里。现有歌词组件会移动到环形屏区域，因此仍然能跟随歌曲同步、适配不同字号，也更容易保证可读性。
 
-## Runtime Layers
-
-```
-stage base image
-  + cover palette wash
-  + slow CSS light arcs and arena glow
-  + Canvas pixel particles / beat accents
-  + DOM lyric halo
-  + existing player controls
-```
-
-`StageBackground` owns only visuals. It reads the current cover and analyser values but does not own playback. The player and lyric components continue to own their current responsibilities.
-
-## Audio Integration
-
-The current analyser already attaches one `MediaElementAudioSourceNode` and exposes bass, mid, high, energy, and beat values. For this prototype it remains an analysis source only.
-
-When EQ is added later, the existing single graph must be extended rather than creating another media source:
+## 运行时图层
 
 ```
-audio -> EQ filters -> optional ambience -> analyser -> destination
+舞台底图
+  + 封面色彩光晕
+  + 缓慢循环的灯束和场馆光
+  + Canvas 像素粒子与节拍反馈
+  + 网页真实歌词环屏
+  + 现有播放器控制区
 ```
 
-This preserves a single audio route and ensures visual response reflects processed output.
+新的 `StageBackground` 只负责视觉：读取当前封面和音频分析数据，但不接管播放逻辑。播放器与歌词组件仍保留现有职责。
 
-## Animation Rules
+## 音频接法
 
-- Cover change: crossfade palette over 900-1200ms; clamp luminance so lyrics remain readable.
-- Slow loop: rotate/translate light gradients over 8-16 seconds using transform and opacity.
-- Audio response: map bass to stage-rim scale, mid to side-light width, high to sparse particles, and beat to a capped 100ms ring pulse.
-- Canvas work uses `requestAnimationFrame`, writes directly to a canvas/ref, and does not trigger React renders every frame.
-- Mobile reduces particles and beat-update rate; hidden tabs and paused playback stop the loop.
+当前分析器已经提供低频、中频、高频、整体能量和节拍等数据。原型阶段只用这些数据驱动画面，不改变声音。
 
-## Fallbacks and Accessibility
+以后加入 EQ 时，必须在现有的一条音频链上扩展，不能重复创建音频源：
 
-- `dynamicBg=false`: render no stage animation and preserve the existing quiet background behavior.
-- `prefers-reduced-motion: reduce`: static stage plus one non-looping palette transition.
-- No analyser/audio support: retain palette and slow CSS loop only.
-- Lyrics always render on an opaque enough halo scrim; visual color is never the only indication of a selected setting.
+```
+audio → EQ 滤波器 → 可选环境音效 → 分析器 → 扬声器
+```
 
-## Verification
+这样用户听到的音效，才会和看到的舞台反馈保持一致。
 
-1. Play a track with a bright and a dark cover: verify palette transitions are smooth and lyrics stay legible.
-2. Play a bass-heavy track: verify a visible but non-flashing stage-rim response.
-3. Toggle dynamic background, reduced motion, pause, and a hidden tab: verify loops stop or degrade correctly.
-4. Check 375px mobile and desktop playback: no controls or lyrics overlap the stage's important content.
-5. Run targeted type/lint checks for changed components and inspect the actual listen-mode page.
+## 动画规则
+
+- 换歌：封面色彩在 900–1200ms 内平滑过渡，并限制亮度保证歌词清晰。
+- 慢循环：灯光渐变使用 `transform` 与 `opacity`，每轮 8–16 秒。
+- 音频响应：低频带动舞台边缘脉冲；中频带动侧边灯束；高频触发稀疏粒子；节拍只触发不超过 100ms 的柔和环形亮起。
+- Canvas 每帧直接绘制，不会每帧触发 React 整页重新渲染。
+- 手机端减少粒子和节拍更新次数；页面隐藏或暂停时停止循环。
+
+## 关闭与降级
+
+- 关闭“动态背景”：不渲染舞台动画，保留安静的原背景体验。
+- 系统开启“减少动态效果”：舞台静止，只保留一次封面颜色过渡。
+- 浏览器无法分析音频：保留封面配色和缓慢 CSS 灯光，不影响播放。
+- 歌词始终显示在足够深的环形屏底色上；不能只靠颜色表达选中状态。
+
+## 验收方式
+
+1. 分别播放浅色和深色封面的歌曲：颜色切换顺滑，歌词始终清楚。
+2. 播放低频明显的歌曲：舞台边缘有可见但不频闪的反馈。
+3. 关闭动态背景、开启减少动态效果、暂停歌曲、切走页面：动画正确停止或降级。
+4. 检查 375px 手机和桌面端：歌词、播放器与舞台重点不重叠。
+5. 对改动组件跑定向类型/代码检查，并在真实听歌页手动验证。
