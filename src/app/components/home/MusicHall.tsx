@@ -1187,7 +1187,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
             <motion.button
               key={feature.id}
               aria-label={`打开${feature.title}`}
-              className="group relative min-h-[224px] overflow-hidden rounded-[28px] p-5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121212]"
+              className="group relative min-h-[clamp(148px,18vh,184px)] overflow-hidden rounded-[24px] p-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#121212]"
               style={{
                 background: `linear-gradient(145deg, ${feature.glow} 0%, rgba(29,30,34,0.98) 44%, #151619 100%)`,
                 border: "1px solid rgba(255,255,255,0.1)",
@@ -1206,8 +1206,8 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                 style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)", backgroundSize: "32px 32px" }}
               />
               <div
-                className="absolute -right-8 -bottom-10 h-40 w-40 rounded-full border border-white/15 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-12"
-                style={{ boxShadow: `inset 0 0 0 24px ${feature.glow}, inset 0 0 0 25px rgba(255,255,255,.1)` }}
+                className="absolute -right-7 -bottom-9 h-32 w-32 rounded-full border border-white/15 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-12"
+                style={{ boxShadow: `inset 0 0 0 20px ${feature.glow}, inset 0 0 0 21px rgba(255,255,255,.1)` }}
               />
               <div className="relative z-10 flex h-full flex-col">
                 <div className="flex items-center justify-between">
@@ -1215,18 +1215,18 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                   <span className="font-mono text-[10px] tracking-widest text-white/35">{feature.number}</span>
                 </div>
 
-                <div className="mt-6 flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] backdrop-blur-md transition-transform duration-300 group-hover:scale-110" style={{ boxShadow: `0 10px 26px ${feature.glow}` }}>
-                  <feature.icon className="h-5 w-5 text-white" />
+                <div className="mt-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] backdrop-blur-md transition-transform duration-300 group-hover:scale-110" style={{ boxShadow: `0 8px 20px ${feature.glow}` }}>
+                  <feature.icon className="h-4 w-4 text-white" />
                 </div>
 
                 <div className="mt-auto max-w-[72%]">
-                  <h3 className="text-[21px] font-semibold tracking-tight text-white">{feature.title}</h3>
-                  <p className="mt-1.5 text-xs leading-5 text-white/55">
+                  <h3 className="text-[18px] font-semibold tracking-tight text-white">{feature.title}</h3>
+                  <p className="mt-1 text-[11px] leading-4 text-white/55">
                     {"subtitle" in feature && feature.subtitle ? feature.subtitle : feature.description}
                   </p>
                 </div>
 
-                <div className="absolute bottom-5 right-5 flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-[#18191c]/90 text-white shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:border-white group-hover:bg-white group-hover:text-black">
+                <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-[#18191c]/90 text-white shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:border-white group-hover:bg-white group-hover:text-black">
                   <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
                 </div>
               </div>
