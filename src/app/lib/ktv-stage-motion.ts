@@ -15,7 +15,7 @@ interface StageMotion {
 }
 
 const clamp = (value: number, minimum: number, maximum: number) =>
-  Math.min(Math.max(value, minimum), maximum);
+  Number.isFinite(value) ? Math.min(Math.max(value, minimum), maximum) : minimum;
 
 export function estimateBpm(beatTimesMs: readonly number[]): BpmEstimate {
   const intervals = beatTimesMs
