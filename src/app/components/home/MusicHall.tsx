@@ -1106,7 +1106,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
     <div className="h-full overflow-y-auto" style={{ background: "#121212" }}>
       <div className="max-w-[1400px] mx-auto px-8 py-8">
         {/* 顶部：当前播放 + 我的歌单 */}
-        <div className="flex gap-6 mb-6">
+        <div className="flex gap-6 mb-3">
           {/* 左侧：当前播放 */}
           <motion.div
             className="flex-[2] rounded-2xl p-6 flex flex-col items-center justify-center"
@@ -1182,7 +1182,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
         </div>
 
         {/* 中部：功能卡片 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
           {features.map((feature, index) => (
             <motion.button
               key={feature.id}
