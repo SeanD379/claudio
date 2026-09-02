@@ -37,7 +37,7 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
       const data = await res.json();
 
       if (!res.ok) {
-        setQrError(data.error || "生成二维码失败");
+        setQrError(data.detail ? `${data.error}（${data.detail}）` : data.error || "生成二维码失败");
         return;
       }
 

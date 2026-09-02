@@ -31,7 +31,9 @@ export function QRCodeLoginModal({
 
       if (data.error) {
         setStatus("error");
-        setErrorMessage(data.error);
+        setErrorMessage(
+          data.detail ? `${data.error}（${data.detail}）` : data.error
+        );
         return;
       }
 
@@ -293,7 +295,31 @@ export function QRCodeLoginModal({
                 </p>
               )}
               {status === "error" && (
-                <p className="text-red-600 font-medium">{errorMessage}</p>
+                <div className="flex items-center justify-center gap-3">
+                  <p className="text-red-600 font-medium break-all max-w-[220px]">
+                    {errorMessage}
+                  </p>
+                  <button
+                    onClick={handleRefresh}
+                    className="flex items-center gap-1 shrink-0 bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded-full hover:bg-blue-600 transition-colors"
+                    title="重新生成二维码"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    刷新
+                  </button>
+                </div>
               )}
               {status === "success" && (
                 <p className="text-green-600 font-bold">

@@ -162,7 +162,9 @@ export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string 
   } catch (e) {
     const errBody = (e as { body?: unknown }).body;
     console.error("[Auth] 生成 QR 码异常:", errBody ?? e);
-    return null;
+    throw new Error(
+      `NCM request failed: ${JSON.stringify(errBody ?? (e as Error).message ?? String(e))}`
+    );
   }
 }
 

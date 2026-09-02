@@ -41,7 +41,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[QR Login] 错误:", error);
     return NextResponse.json(
-      { error: "二维码登录失败，请稍后重试" },
+      {
+        error: "二维码登录失败，请稍后重试",
+        detail: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
