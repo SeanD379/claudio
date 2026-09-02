@@ -1,13 +1,18 @@
 // NeteaseCloudMusicApi 认证管理
-// 本地开发：通过 HTTP 调用 localhost:3001 的 NeteaseCloudMusicApi 服务
-// Netlify：通过 exec 调用 ncm-cli 命令（使用官方 API 认证）
+// 直接调用 NeteaseCloudMusicApi 模块函数（由其请求网易云音乐服务器），
+// 本地开发与 Netlify 部署均不依赖 localhost:3001 独立服务。
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import { resolve } from "path";
-import { execSync } from "child_process";
+import {
+  login_qr_key,
+  login_qr_create,
+  login_qr_check,
+  user_account,
+  logout as ncmLogout,
+} from "NeteaseCloudMusicApi";
 
 const COOKIE_FILE = resolve(process.cwd(), ".netease-cookie.json");
-const NCM_API = process.env.NCM_API_URL || "http://localhost:3001";
 
 function isNetlify(): boolean {
   return !!process.env.NETLIFY;
@@ -122,54 +127,41 @@ export async function hasCookie(): Promise<boolean> {
   return !!(await getValidCookie());
 }
 
-// ============ HTTP 调用 ============
-
-async function httpGet(path: string, params: Record<string, string | number> = {}): Promise<unknown> {
-  const query = new URLSearchParams(
-    Object.entries(params).map(([k, v]) => [k, String(v)])
-  ).toString();
-  const url = `${NCM_API}${path}${query ? `?${query}` : ""}`;
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-  if (!res.ok) throw new Error(`NCM API error: ${res.status}`);
-  return res.json();
-}
+// ============ HTTP 调用（已废弃） ============
+// 原通过 httpGet 请求 localhost:3001 的独立服务，
+// 现已全部改为直接调用 NeteaseCloudMusicApi 模块函数。
 
 // ============ QR 码登录 ============
 
 /**
- * 生成 QR 码
+ * 生成 QR 码（直接调用 NeteaseCloudMusicApi 模块函数，
+ * 由其向网易云音乐服务器发起请求，本地与 Netlify 均可用）
  */
 export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string } | null> {
   try {
     // 1. 获取 QR key
-    const keyRes = (await httpGet("/login/qr/key", { timestamp: Date.now() })) as {
-      data?: { code?: number; unikey?: string };
-    };
-    const unikey = keyRes?.data?.unikey;
+    const keyRes = await login_qr_key({});
+    const unikey = (keyRes.body as { data?: { unikey?: string } })?.data?.unikey;
     if (!unikey) {
-      console.error("[Auth] 获取 QR key 失败:", keyRes);
+      console.error("[Auth] 获取 QR key 失败:", keyRes.body);
       return null;
     }
 
     // 2. 创建 QR 图片
-    const createRes = (await httpGet("/login/qr/create", {
+    const createRes = await login_qr_create({
       key: unikey,
-      platform: "web",
-      qrimg: "true",
-      timestamp: Date.now(),
-    })) as {
-      data?: { qrimg?: string; qrurl?: string };
-    };
-
-    const qrimg = createRes?.data?.qrimg;
+      qrimg: true,
+    });
+    const qrimg = (createRes.body as { data?: { qrimg?: string } })?.data?.qrimg;
     if (!qrimg) {
-      console.error("[Auth] 创建 QR 失败:", createRes);
+      console.error("[Auth] 创建 QR 失败:", createRes.body);
       return null;
     }
 
     return { uniKey: unikey, qrImg: qrimg };
   } catch (e) {
-    console.error("[Auth] 生成 QR 码异常:", e);
+    const errBody = (e as { body?: unknown }).body;
+    console.error("[Auth] 生成 QR 码异常:", errBody ?? e);
     return null;
   }
 }
@@ -182,23 +174,15 @@ export async function checkQrStatus(uniKey: string): Promise<{
   message?: string;
 }> {
   try {
-    const res = (await httpGet("/login/qr/check", {
-      key: uniKey,
-      noCookie: "true",
-      timestamp: Date.now(),
-    })) as {
-      code?: number;
-      message?: string;
-      cookie?: string;
-    };
-
-    const code = res?.code || 800;
+    const res = await login_qr_check({ key: uniKey });
+    const body = res.body as { code?: number; message?: string; cookie?: string };
+    const code = body?.code || 800;
 
     // 803 = 登录成功，保存 Cookie
-    if (code === 803 && res.cookie) {
-      const profile = await fetchProfile(res.cookie);
+    if (code === 803 && body.cookie) {
+      const profile = await fetchProfile(body.cookie);
       await saveCookie({
-        cookie: res.cookie,
+        cookie: body.cookie,
         userId: profile?.userId || 0,
         nickname: profile?.nickname || "",
         avatarUrl: profile?.avatarUrl || "",
@@ -206,10 +190,12 @@ export async function checkQrStatus(uniKey: string): Promise<{
       });
     }
 
-    return { status: code, message: res?.message };
+    return { status: code, message: body?.message };
   } catch (e) {
-    console.error("[Auth] 检查 QR 状态异常:", e);
-    return { status: 800, message: "检查失败" };
+    // 模块函数在非 200 状态时会抛出含 body 的错误对象
+    const errBody = (e as { body?: { code?: number; message?: string } }).body;
+    console.error("[Auth] 检查 QR 状态异常:", errBody ?? e);
+    return { status: errBody?.code || 800, message: errBody?.message || "检查失败" };
   }
 }
 
@@ -221,13 +207,16 @@ async function fetchProfile(cookie: string): Promise<{
   avatarUrl: string;
 } | null> {
   try {
-    const data = (await httpGet("/user/account", { cookie })) as {
+    const res = await user_account({ cookie });
+    const body = res.body as {
       code?: number;
       profile?: { userId: number; nickname: string; avatarUrl: string };
     };
-    if (data?.code === 200 && data.profile) return data.profile;
+    if (body?.code === 200 && body.profile) return body.profile;
     return null;
-  } catch {
+  } catch (e) {
+    const errBody = (e as { body?: unknown }).body;
+    console.error("[Auth] 获取用户资料异常:", errBody ?? e);
     return null;
   }
 }
@@ -253,8 +242,11 @@ export async function logout(): Promise<void> {
   const cookie = await getValidCookie();
   if (cookie) {
     try {
-      await httpGet("/logout", { timestamp: Date.now(), cookie });
-    } catch {}
+      await ncmLogout({ cookie });
+    } catch (e) {
+      const errBody = (e as { body?: unknown }).body;
+      console.error("[Auth] 登出异常:", errBody ?? e);
+    }
   }
   await deleteCookie();
 }

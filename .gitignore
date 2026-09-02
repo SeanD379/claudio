@@ -36,8 +36,21 @@ yarn-error.log*
 
 # privacy & sensitive data
 .netease-cookie
+.netease-cookie.json
 docs/playlists-export.json
 docs/playlist-snapshot.json
+
+# local logs & misc artifacts
+dev-server.log
+dev.stderr.log
+dev.stdout.log
+ip-lab-preview.log
+ncm.stderr.log
+ncm.stdout.log
+next.stderr.log
+next.stdout.log
+s.coverUrl!)
+s.neteaseId
 
 # demo files (keep local but don't upload)
 claudio-demo.html
