@@ -4,15 +4,22 @@
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import { resolve } from "path";
-import {
-  login_qr_key,
-  login_qr_create,
-  login_qr_check,
-  user_account,
-  logout as ncmLogout,
-} from "NeteaseCloudMusicApi";
 
 const COOKIE_FILE = resolve(process.cwd(), ".netease-cookie.json");
+
+/**
+ * 动态加载 NeteaseCloudMusicApi（避免顶层 import 在打包异常时导致函数整体崩溃），
+ * 加载失败时抛出可被上层捕获并返回 JSON 详情的错误。
+ */
+async function loadNcm() {
+  try {
+    return await import("NeteaseCloudMusicApi");
+  } catch (e) {
+    throw new Error(
+      `NeteaseCloudMusicApi module load failed: ${e instanceof Error ? e.message : String(e)}`
+    );
+  }
+}
 
 function isNetlify(): boolean {
   return !!process.env.NETLIFY;
@@ -139,6 +146,7 @@ export async function hasCookie(): Promise<boolean> {
  */
 export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string } | null> {
   try {
+    const { login_qr_key, login_qr_create } = await loadNcm();
     // 1. 获取 QR key
     const keyRes = await login_qr_key({});
     const unikey = (keyRes.body as { data?: { unikey?: string } })?.data?.unikey;
@@ -176,6 +184,7 @@ export async function checkQrStatus(uniKey: string): Promise<{
   message?: string;
 }> {
   try {
+    const { login_qr_check } = await loadNcm();
     const res = await login_qr_check({ key: uniKey });
     const body = res.body as { code?: number; message?: string; cookie?: string };
     const code = body?.code || 800;
@@ -209,6 +218,7 @@ async function fetchProfile(cookie: string): Promise<{
   avatarUrl: string;
 } | null> {
   try {
+    const { user_account } = await loadNcm();
     const res = await user_account({ cookie });
     const body = res.body as {
       code?: number;
@@ -244,6 +254,7 @@ export async function logout(): Promise<void> {
   const cookie = await getValidCookie();
   if (cookie) {
     try {
+      const { logout: ncmLogout } = await loadNcm();
       await ncmLogout({ cookie });
     } catch (e) {
       const errBody = (e as { body?: unknown }).body;
