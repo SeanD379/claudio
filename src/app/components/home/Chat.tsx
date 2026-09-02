@@ -2,10 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Play, RefreshCw, Volume2, VolumeX, Loader2 } from "lucide-react";
+import { Send, Play, RefreshCw } from "lucide-react";
 import { usePlayer, type Song } from "@/hooks/usePlayer";
-import { useNarration } from "@/hooks/useNarration";
-import { useTTS } from "@/hooks/useTTS";
 import { useTranslation } from "@/hooks/useTranslation";
 import { SongList } from "./SongList";
 
@@ -32,7 +30,6 @@ export function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchAndPlay = usePlayer((s) => s.searchAndPlay);
-  const { speak, stop: stopTTS, isLoading: ttsLoading, enabled: ttsEnabled, toggle: toggleTTS, currentMessageId } = useTTS();
   const prevLangRef = useRef(lang);
   const lastUserInputRef = useRef<string>("");
 
@@ -108,19 +105,6 @@ export function Chat() {
     }
   }, [lang]);
 
-  const handleNarration = useCallback((song: Song, narration: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `narrate-${song.neteaseId}-${Date.now()}`,
-        role: "assistant",
-        content: narration,
-      },
-    ]);
-  }, []);
-
-  useNarration(handleNarration);
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -167,8 +151,6 @@ export function Chat() {
       if (data.searchKeyword) {
         searchAndPlay(data.searchKeyword);
       }
-
-      speak(data.reply, lang, aiMessage.id);
     } catch (error) {
       console.error("Chat error:", error);
       const errorMessage: Message = {
@@ -297,24 +279,13 @@ export function Chat() {
       transition={{ duration: 0.5 }}
     >
       {/* Header */}
-      <div className="p-4 border-b border-border-custom flex items-center justify-between">
+      <div className="p-4 border-b border-border-custom">
         <h2
           className="text-lg font-normal text-text-primary tracking-tight"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {t("chat.title")}
         </h2>
-        <button
-          onClick={toggleTTS}
-          className={`p-2 rounded-lg transition-colors ${
-            ttsEnabled
-              ? "text-accent hover:bg-accent-glow"
-              : "text-text-muted hover:bg-surface-elevated"
-          }`}
-          title={ttsEnabled ? (lang === "en" ? "Disable TTS" : "关闭语音") : (lang === "en" ? "Enable TTS" : "开启语音")}
-        >
-          {ttsEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-        </button>
       </div>
 
       {/* Message List */}
@@ -339,31 +310,6 @@ export function Chat() {
                 }`}
               >
                 {message.content}
-                {message.role === "assistant" && ttsEnabled && (() => {
-                  const isThisMessagePlaying = currentMessageId === message.id;
-                  return (
-                    <button
-                      onClick={() => {
-                        if (isThisMessagePlaying) {
-                          stopTTS();
-                        } else {
-                          speak(message.content, lang, message.id);
-                        }
-                      }}
-                      disabled={ttsLoading && !isThisMessagePlaying}
-                      className="mt-2 flex items-center gap-1 text-xs text-text-muted hover:text-text-secondary transition-colors"
-                    >
-                      {ttsLoading && isThisMessagePlaying ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : isThisMessagePlaying ? (
-                        <VolumeX className="w-3 h-3" />
-                      ) : (
-                        <Volume2 className="w-3 h-3" />
-                      )}
-                      {isThisMessagePlaying ? (lang === "en" ? "Stop" : "停止") : (lang === "en" ? "Read aloud" : "朗读")}
-                    </button>
-                  );
-                })()}
                 {message.songs && message.songs.length > 0 && (
                   <SongList
                     songs={message.songs}

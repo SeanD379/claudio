@@ -27,9 +27,8 @@ export const useMode = create<ModeState>((set) => ({
 export function restoreMode(): void {
   try {
     const saved = localStorage.getItem("claudio-mode");
-    if (saved === "listen" || saved === "concert" || saved === "ktv") {
-      const mode = saved === "ktv" ? "concert" : saved;
-      useMode.setState({ mode, showHall: mode === "listen" });
+    if (saved === "listen" || saved === "concert") {
+      useMode.setState({ mode: saved, showHall: saved === "listen" });
     }
   } catch {}
 }

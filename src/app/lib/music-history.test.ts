@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import {
   allocateUnseenCandidates,
   buildHistoryFingerprint,
+  buildMusicKnowledgeCandidates,
+  buildMusicHistoryNarrative,
   buildLocalCandidates,
   parseHistoryDate,
   parseMusicHistoryWikitext,
@@ -96,6 +98,21 @@ function wikiResponse(wikitext: string): Response {
   );
 }
 
+function articleSummaryResponse(
+  title: string,
+  extract: string,
+  sourceUrl: string,
+): Response {
+  return new Response(
+    JSON.stringify({
+      title,
+      extract,
+      content_urls: { desktop: { page: sourceUrl } },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+}
+
 const historyDate = {
   displayYear: 2026,
   month: 8,
@@ -127,25 +144,13 @@ test("parseMusicHistoryWikitext keeps music events and cleans wiki markup", () =
   const source = `
 == 大事记 ==
 * [[1965年]]：[[鲍勃·迪伦]]发行专辑《Highway 61 Revisited》。<ref>source</ref>
+* [[2011年]]：日本大型女子偶像组合-[[乃木坂46]]出道。
 * [[1997年]]：某国举行议会选举。
 == 出生 ==
 * [[1943年]]：[[约翰·艾略特·加德纳]]，英国指挥家。
 `;
 
   assert.deepEqual(parseMusicHistoryWikitext(source, "08-30"), [
-    {
-      eventYear: 1943,
-      event: "约翰·艾略特·加德纳，英国指挥家。",
-      artist: null,
-      sourceType: "wikimedia",
-      sourceTitle: "8月30日",
-      sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
-      fingerprint: buildHistoryFingerprint(
-        "08-30",
-        1943,
-        "约翰·艾略特·加德纳，英国指挥家。",
-      ),
-    },
     {
       eventYear: 1965,
       event: "鲍勃·迪伦发行专辑《Highway 61 Revisited》。",
@@ -158,6 +163,21 @@ test("parseMusicHistoryWikitext keeps music events and cleans wiki markup", () =
         1965,
         "鲍勃·迪伦发行专辑《Highway 61 Revisited》。",
       ),
+      articleTitle: "鲍勃·迪伦",
+    },
+    {
+      eventYear: 2011,
+      event: "日本大型女子偶像组合-乃木坂46出道。",
+      artist: null,
+      sourceType: "wikimedia",
+      sourceTitle: "8月30日",
+      sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
+      fingerprint: buildHistoryFingerprint(
+        "08-30",
+        2011,
+        "日本大型女子偶像组合-乃木坂46出道。",
+      ),
+      articleTitle: "乃木坂46",
     },
   ]);
 });
@@ -171,6 +191,33 @@ test("parseMusicHistoryWikitext requires a music keyword beyond 发行", () => {
   assert.deepEqual(
     parseMusicHistoryWikitext(source, "08-30").map((item) => item.event),
     ["歌手发行单曲。"],
+  );
+});
+
+test("parseMusicHistoryWikitext converts every candidate to simplified Chinese", () => {
+  const source = "* [[1960年]]：[[林秋離]]，臺灣作詞家、唱片製作人（2022年逝世）。";
+
+  assert.deepEqual(
+    parseMusicHistoryWikitext(source, "08-21").map((item) => item.event),
+    [],
+  );
+});
+
+test("buildMusicHistoryNarrative turns a music debut into a concise impact note", () => {
+  const historyCandidate = candidate(2011, "日本大型女子偶像组合-乃木坂46出道。", "nogizaka");
+
+  assert.deepEqual(
+    buildMusicHistoryNarrative(historyCandidate, {
+      title: "乃木坂46",
+      extract: "乃木坂46是日本大型女子偶像团体，成立于2011年8月21日；其出道时定位为另一女子偶像组合AKB48的“官方对手”，并与其他团体构成坂道系列。",
+      sourceUrl: "https://zh.wikipedia.org/wiki/乃木坂46",
+    }),
+    {
+      ...historyCandidate,
+      event: "乃木坂46出道。日本大型女子偶像团体；其出道时定位为另一女子偶像组合AKB48的“官方对手”。",
+      artist: null,
+      sourceUrl: "https://zh.wikipedia.org/wiki/乃木坂46",
+    },
   );
 });
 
@@ -252,13 +299,13 @@ test("allocateUnseenCandidates rejects non-positive and non-finite limits", () =
 
 test("parseMusicHistoryWikitext supports year separators and ignores numbered lines", () => {
   const source = `
-* [[1960年]]：音乐事件甲
-* [[1961年]]:音乐事件乙
-* [[1962年]]—音乐事件丙
-* [[1963年]]–音乐事件丁
-* [[1964年]]-音乐事件戊
-* [[1965年]]音乐事件己
-# [[1966年]]：音乐事件庚
+* [[1960年]]：音乐专辑发行甲
+* [[1961年]]:音乐专辑发行乙
+* [[1962年]]—音乐专辑发行丙
+* [[1963年]]–音乐专辑发行丁
+* [[1964年]]-音乐专辑发行戊
+* [[1965年]]音乐专辑发行己
+# [[1966年]]：音乐专辑发行庚
 `;
 
   assert.deepEqual(
@@ -267,7 +314,7 @@ test("parseMusicHistoryWikitext supports year separators and ignores numbered li
   );
 });
 
-test("getOrCreateHistoryBatch returns an ordered stored batch without fetching or writing", async () => {
+test("getOrCreateHistoryBatch fills a short stored batch to three entries without fetching", async () => {
   const restore = installServiceMocks(
     async () => [
       {
@@ -295,25 +342,86 @@ test("getOrCreateHistoryBatch returns an ordered stored batch without fetching o
   );
 
   try {
-    assert.deepEqual(await getOrCreateHistoryBatch(historyDate), {
-      events: [
-        {
-          year: 1970,
-          event: "第二个事件",
-          artist: null,
-          sourceUrl: null,
-        },
-        {
-          year: 1965,
-          event: "第一个事件",
-          artist: "示例音乐人",
-          sourceUrl: "https://example.com/first",
-        },
-      ],
-      source: "stored",
-      saved: true,
-      exhausted: false,
+    const result = await getOrCreateHistoryBatch(historyDate);
+    assert.equal(result.events.length, 3);
+    assert.deepEqual(result.events.slice(0, 2), [
+      { year: 1970, event: "第二个事件", artist: null, sourceUrl: null },
+      { year: 1965, event: "第一个事件", artist: "示例音乐人", sourceUrl: "https://example.com/first" },
+    ]);
+    assert.equal(result.source, "stored");
+    assert.equal(result.saved, true);
+    assert.equal(result.exhausted, false);
+  } finally {
+    restore();
+  }
+});
+
+test("buildMusicKnowledgeCandidates supplies labelled music knowledge cards", () => {
+  const candidates = buildMusicKnowledgeCandidates("08-21", 2026, [
+    { year: 1967, event: "The Beatles 发行《Sgt. Pepper's Lonely Hearts Club Band》" },
+    { year: 1979, event: "索尼推出第一款 Walkman 随身听，开启个人便携音乐时代" },
+    { year: 1981, event: "MTV 开播，音乐录像带成为流行文化的重要媒介" },
+  ]);
+
+  assert.equal(candidates.length, 3);
+  assert.equal(candidates.every((item) => item.event.startsWith("音乐知识回顾｜")), true);
+  assert.equal(candidates.every((item) => item.sourceType === "local"), true);
+});
+
+test("getOrCreateHistoryBatch replaces legacy birth listings with a meaningful music event", async () => {
+  let findManyCalls = 0;
+  const restore = installServiceMocks(
+    async () => {
+      findManyCalls += 1;
+      if (findManyCalls === 1) {
+        return [
+          {
+            eventYear: 1959,
+            event: "新居昭乃，日本歌手",
+            artist: null,
+            sourceUrl: "https://zh.wikipedia.org/wiki/8月21日",
+          },
+        ];
+      }
+
+      return [];
+    },
+    async () => {
+      throw new Error("legacy batch must not create rows");
+    },
+    async () => {
+      throw new Error("legacy batch must not write a transaction");
+    },
+    async (input) => {
+      const url = String(input);
+      if (url.includes("w/api.php")) {
+        return wikiResponse(
+          "* [[2011年]]：日本大型女子偶像组合-[[乃木坂46]]出道。",
+        );
+      }
+
+      assert.match(url, /page\/summary/);
+      return articleSummaryResponse(
+        "乃木坂46",
+        "乃木坂46是日本大型女子偶像团体，成立于2011年8月21日；其出道时定位为另一女子偶像组合AKB48的“官方对手”，并与其他团体构成坂道系列。",
+        "https://zh.wikipedia.org/wiki/乃木坂46",
+      );
+    },
+  );
+
+  try {
+    const result = await getOrCreateHistoryBatch({
+      displayYear: 2026,
+      month: 8,
+      day: 21,
+      monthDay: "08-21",
     });
+    assert.equal(result.events.length, 3);
+    assert.match(result.events[0].event, /^乃木坂46出道。/);
+    assert.equal(result.events.slice(1).every((event) => event.isKnowledge), true);
+    assert.equal(result.source, "wikimedia");
+    assert.equal(result.saved, false);
+    assert.equal(result.exhausted, false);
   } finally {
     restore();
   }
@@ -332,6 +440,7 @@ test("getOrCreateHistoryBatch reallocates after P2002 and saves unseen Wikimedia
   );
   const persisted: StoredHistoryEntry[] = [];
   const savedFingerprints: string[] = [];
+  const createPayloads: Array<HistoryEntryCreateInput["data"]> = [];
   const transactionSizes: number[] = [];
   let findManyCalls = 0;
 
@@ -357,6 +466,7 @@ test("getOrCreateHistoryBatch reallocates after P2002 and saves unseen Wikimedia
     async (input) => {
       const { data } = input as HistoryEntryCreateInput;
       savedFingerprints.push(data.fingerprint);
+      createPayloads.push(data);
       return data;
     },
     async (operations) => {
@@ -369,18 +479,12 @@ test("getOrCreateHistoryBatch reallocates after P2002 and saves unseen Wikimedia
       }
 
       persisted.push(
-        {
-          eventYear: 1970,
-          event: "歌手乙发行专辑。",
-          artist: null,
-          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
-        },
-        {
-          eventYear: 1980,
-          event: "歌手丙发行专辑。",
-          artist: null,
-          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
-        },
+        ...createPayloads.slice(-3).map((data) => ({
+          eventYear: data.eventYear,
+          event: data.event,
+          artist: data.artist,
+          sourceUrl: data.sourceUrl,
+        })),
       );
     },
     async () => wikiResponse(wikitext),
@@ -389,70 +493,54 @@ test("getOrCreateHistoryBatch reallocates after P2002 and saves unseen Wikimedia
   try {
     const result = await getOrCreateHistoryBatch(historyDate);
 
-    assert.deepEqual(transactionSizes, [3, 2]);
+    assert.deepEqual(transactionSizes, [3, 3]);
     assert.equal(savedFingerprints.includes(conflictingFingerprint), true);
     assert.equal(
       savedFingerprints.slice(-2).includes(conflictingFingerprint),
       false,
     );
-    assert.deepEqual(result, {
-      events: [
-        {
-          year: 1970,
-          event: "歌手乙发行专辑。",
-          artist: null,
-          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
-        },
-        {
-          year: 1980,
-          event: "歌手丙发行专辑。",
-          artist: null,
-          sourceUrl: "https://zh.wikipedia.org/wiki/8月30日",
-        },
-      ],
-      source: "wikimedia",
-      saved: true,
-      exhausted: false,
-    });
+    assert.equal(result.events.length, 3);
+    assert.equal(result.source, "wikimedia");
+    assert.equal(result.saved, true);
+    assert.equal(result.exhausted, false);
   } finally {
     restore();
   }
 });
 
-test("getOrCreateHistoryBatch returns exhausted when every candidate is used", async () => {
-  const wikitext = "* [[1960年]]：歌手甲发行专辑。";
-  const usedFingerprint = buildHistoryFingerprint(
-    "08-30",
-    1960,
-    "歌手甲发行专辑。",
-  );
-  let transactionCalled = false;
+test("getOrCreateHistoryBatch supplies three knowledge cards when the day has no usable events", async () => {
+  const persisted: StoredHistoryEntry[] = [];
+  const createPayloads: Array<HistoryEntryCreateInput["data"]> = [];
   let findManyCalls = 0;
 
   const restore = installServiceMocks(
     async () => {
       findManyCalls += 1;
-      return findManyCalls === 1
-        ? []
-        : [{ fingerprint: usedFingerprint }];
+      return findManyCalls === 3 ? persisted : [];
+    },
+    async (input) => {
+      const { data } = input as HistoryEntryCreateInput;
+      createPayloads.push(data);
+      return data;
     },
     async () => {
-      throw new Error("exhausted batch must not create rows");
+      persisted.push(
+        ...createPayloads.map((data) => ({
+          eventYear: data.eventYear,
+          event: data.event,
+          artist: data.artist,
+          sourceUrl: data.sourceUrl,
+        })),
+      );
     },
-    async () => {
-      transactionCalled = true;
-    },
-    async () => wikiResponse(wikitext),
+    async () => wikiResponse(""),
   );
 
   try {
-    assert.deepEqual(await getOrCreateHistoryBatch(historyDate), {
-      events: [],
-      source: "local",
-      saved: false,
-      exhausted: true,
-    });
-    assert.equal(transactionCalled, false);
+    const result = await getOrCreateHistoryBatch(historyDate);
+    assert.equal(result.events.length, 3);
+    assert.equal(result.events.every((event) => event.isKnowledge), true);
+    assert.equal(result.exhausted, false);
   } finally {
     restore();
   }
@@ -471,14 +559,10 @@ test("getOrCreateHistoryBatch falls back to unused local candidates after used W
     1960,
     "歌手甲发行专辑。",
   );
-  const localFingerprint = buildHistoryFingerprint(
-    "08-29",
-    1958,
-    "Michael Jackson 出生于印第安纳州加里市",
-  );
   const persisted: StoredHistoryEntry[] = [];
   const createPayloads: Array<HistoryEntryCreateInput["data"]> = [];
   let findManyCalls = 0;
+  let transactionAttempts = 0;
 
   const restore = installServiceMocks(
     async () => {
@@ -507,7 +591,8 @@ test("getOrCreateHistoryBatch falls back to unused local candidates after used W
       return data;
     },
     async () => {
-      if (createPayloads.length === 1) {
+      transactionAttempts += 1;
+      if (transactionAttempts === 1) {
         throw new Prisma.PrismaClientKnownRequestError("conflict", {
           code: "P2002",
           clientVersion: "test",
@@ -515,7 +600,7 @@ test("getOrCreateHistoryBatch falls back to unused local candidates after used W
       }
 
       persisted.push(
-        ...createPayloads.slice(1).map((data) => ({
+        ...createPayloads.slice(-3).map((data) => ({
           eventYear: data.eventYear,
           event: data.event,
           artist: data.artist,
@@ -527,35 +612,13 @@ test("getOrCreateHistoryBatch falls back to unused local candidates after used W
   );
 
   try {
-    assert.deepEqual(await getOrCreateHistoryBatch(localHistoryDate), {
-      events: [
-        {
-          year: 1958,
-          event: "Michael Jackson 出生于印第安纳州加里市",
-          artist: "Michael Jackson",
-          sourceUrl: null,
-        },
-      ],
-      source: "local",
-      saved: true,
-      exhausted: false,
-    });
-    assert.deepEqual(createPayloads.map((data) => data.fingerprint), [
-      localFingerprint,
-      localFingerprint,
-    ]);
-    assert.deepEqual(
-      createPayloads.slice(1).map((data) => data.sourceType),
-      ["local"],
-    );
-    assert.deepEqual(
-      createPayloads.slice(1).map((data) => data.fingerprint),
-      [localFingerprint],
-    );
-    assert.equal(
-      createPayloads.slice(1).some((data) => data.fingerprint === usedFingerprint),
-      false,
-    );
+    const result = await getOrCreateHistoryBatch(localHistoryDate);
+    assert.equal(result.events.length, 3);
+    assert.equal(result.events.every((event) => event.isKnowledge), true);
+    assert.equal(result.source, "local");
+    assert.equal(result.saved, true);
+    assert.equal(result.exhausted, false);
+    assert.equal(createPayloads.some((data) => data.fingerprint === usedFingerprint), false);
   } finally {
     restore();
   }

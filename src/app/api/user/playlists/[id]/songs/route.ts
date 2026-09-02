@@ -40,6 +40,8 @@ export async function GET(
         id: playlist.id,
         name: playlist.name,
         neteaseId: playlist.neteaseId,
+        description: playlist.description,
+        coverUrl: playlist.coverUrl,
       },
       songs: playlistSongs.map((ps) => ({
         id: ps.song.id,

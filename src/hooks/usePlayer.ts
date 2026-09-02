@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { useTheme } from "./useTheme";
 
 // 浏览器自动播放策略：记录用户是否已交互
 let userHasInteracted = false;
@@ -52,6 +53,7 @@ interface PlayerState {
   shufflePosition: number;
   onPlaylistEnd: (() => void) | null;
   playHistory: Song[];
+  sleepTimerEndAt: number | null;
 
   initAudio: () => void;
   playSong: (song: Song) => void;
@@ -65,14 +67,14 @@ interface PlayerState {
   searchAndPlay: (keyword: string) => Promise<void>;
   setBeforePlay: (fn: ((song: Song) => Promise<void>) | null) => void;
   cycleRepeat: () => void;
-  duckVolume: () => void;
-  restoreVolume: () => void;
   restorePlayMode: () => void;
   addToHistory: (song: Song) => void;
+  setSleepTimer: (minutes: number | null) => void;
 }
 
 let audioElement: HTMLAudioElement | null = null;
 let listenersAttached = false;
+let sleepTimerId: ReturnType<typeof setTimeout> | null = null;
 
 function getAudio(): HTMLAudioElement {
   if (!audioElement) {
@@ -96,6 +98,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   shuffleOrder: [],
   shufflePosition: 0,
   onPlaylistEnd: null,
+  sleepTimerEndAt: null,
   playHistory: (() => {
     try {
       const saved = localStorage.getItem("claudio-play-history");
@@ -107,6 +110,26 @@ export const usePlayer = create<PlayerState>((set, get) => ({
 
   setBeforePlay: (fn) => {
     set({ beforePlay: fn });
+  },
+
+  setSleepTimer: (minutes) => {
+    if (sleepTimerId) {
+      clearTimeout(sleepTimerId);
+      sleepTimerId = null;
+    }
+
+    if (!minutes) {
+      set({ sleepTimerEndAt: null });
+      return;
+    }
+
+    const sleepTimerEndAt = Date.now() + minutes * 60 * 1000;
+    sleepTimerId = setTimeout(() => {
+      audioElement?.pause();
+      sleepTimerId = null;
+      set({ sleepTimerEndAt: null });
+    }, minutes * 60 * 1000);
+    set({ sleepTimerEndAt });
   },
 
   cycleRepeat: () => {
@@ -158,7 +181,11 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       });
 
       audio.addEventListener("ended", () => {
-        get().nextSong();
+        if (useTheme.getState().autoPlay) {
+          get().nextSong();
+        } else {
+          set({ isPlaying: false });
+        }
       });
 
       audio.addEventListener("play", () => set({ isPlaying: true }));
@@ -389,38 +416,6 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       console.error("Search and play failed:", err);
       set({ isLoading: false });
     }
-  },
-
-  duckVolume: () => {
-    const audio = getAudio();
-    const { volume } = get();
-    const target = (volume / 100) * 0.2;
-    // 防止重复闪避：如果已经低于目标，不重复操作
-    if (audio.volume <= target + 0.01) return;
-    const step = (audio.volume - target) / 10;
-    let i = 0;
-    const fade = () => {
-      i++;
-      audio.volume = Math.max(target, audio.volume - step);
-      if (i < 10) requestAnimationFrame(fade);
-    };
-    fade();
-  },
-
-  restoreVolume: () => {
-    const audio = getAudio();
-    const { volume } = get();
-    const target = volume / 100;
-    // 防止重复恢复：如果已经接近目标，不重复操作
-    if (Math.abs(audio.volume - target) < 0.01) return;
-    const step = (target - audio.volume) / 10;
-    let i = 0;
-    const fade = () => {
-      i++;
-      audio.volume = Math.min(target, audio.volume + step);
-      if (i < 10) requestAnimationFrame(fade);
-    };
-    fade();
   },
 
   restorePlayMode: () => {

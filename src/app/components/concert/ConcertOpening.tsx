@@ -33,7 +33,7 @@ interface Props {
   onDone: () => void;
 }
 
-export function KtvOpening({ onDone }: Props) {
+export function ConcertOpening({ onDone }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);

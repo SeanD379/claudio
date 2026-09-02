@@ -33,7 +33,6 @@ export async function GET() {
       theme: settings.theme,
       fontSize: settings.fontSize,
       language: settings.language,
-      narrationEnabled: settings.narrationEnabled,
       autoPlay: settings.autoPlay,
       quickSwitch: settings.quickSwitch,
       dynamicBg: settings.dynamicBg,
@@ -52,7 +51,7 @@ export async function GET() {
 // 更新设置
 export async function PUT(request: NextRequest) {
   try {
-    const { theme, fontSize, language, narrationEnabled, autoPlay, quickSwitch, dynamicBg } = await request.json();
+    const { theme, fontSize, language, autoPlay, quickSwitch, dynamicBg } = await request.json();
 
     // 临时使用固定用户ID
     const userId = "default-user";
@@ -69,7 +68,6 @@ export async function PUT(request: NextRequest) {
         theme: theme || undefined,
         fontSize: fontSize || undefined,
         language: language || undefined,
-        narrationEnabled,
         autoPlay,
         quickSwitch,
         dynamicBg,
@@ -79,7 +77,6 @@ export async function PUT(request: NextRequest) {
         theme: theme || "light",
         fontSize: fontSize || "medium",
         language: language || "zh",
-        narrationEnabled: narrationEnabled !== false,
         autoPlay: autoPlay !== false,
         quickSwitch: quickSwitch === true,
         dynamicBg: dynamicBg !== false,
@@ -90,7 +87,6 @@ export async function PUT(request: NextRequest) {
       theme: settings.theme,
       fontSize: settings.fontSize,
       language: settings.language,
-      narrationEnabled: settings.narrationEnabled,
       autoPlay: settings.autoPlay,
       quickSwitch: settings.quickSwitch,
       dynamicBg: settings.dynamicBg,

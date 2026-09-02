@@ -7,20 +7,24 @@ import { useMode, type AppMode } from "@/hooks/useMode";
 import { useNavigation } from "@/hooks/useNavigation";
 import { Headphones, Mic, Home } from "lucide-react";
 
-const modes = [
-  { id: "listen" as AppMode, label: "听歌", icon: Headphones },
-  { id: "concert" as AppMode, label: "演唱会", icon: Mic },
-  { id: "home" as const, label: "回到主页", icon: Home },
-];
-
 export function ModeSwitcher() {
   const router = useRouter();
   const { mode, setMode, setShowHall } = useMode();
-  const { popSourceModule } = useNavigation();
+  const { returnPath, popReturnPath, popSourceModule } = useNavigation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const modes = [
+    { id: "listen" as AppMode, label: "听歌", icon: Headphones },
+    { id: "concert" as AppMode, label: "演唱会", icon: Mic },
+    { id: "home" as const, label: returnPath ? "返回上一页" : "回到主页", icon: Home },
+  ];
 
   const handleClick = (id: string) => {
     if (id === "home") {
+      const previousPath = popReturnPath();
+      if (previousPath) {
+        router.push(previousPath);
+        return;
+      }
       // 检查是否有来源模块可以返回
       const sourceModule = popSourceModule();
       if (sourceModule && sourceModule !== "home") {

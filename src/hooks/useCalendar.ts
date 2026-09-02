@@ -55,6 +55,7 @@ interface HistoryEvent {
   event: string;
   artist?: string | null;
   sourceUrl?: string | null;
+  isKnowledge?: boolean;
 }
 
 export type HistoryState = "idle" | "loading" | "ready" | "exhausted" | "error";
@@ -69,12 +70,13 @@ function parseHistoryData(data: unknown): { events: HistoryEvent[]; exhausted: b
     ? response.events.reduce<HistoryEvent[]>((validEvents, item) => {
         if (typeof item !== "object" || item === null) return validEvents;
 
-        const event = item as { year?: unknown; event?: unknown; artist?: unknown; sourceUrl?: unknown };
+        const event = item as { year?: unknown; event?: unknown; artist?: unknown; sourceUrl?: unknown; isKnowledge?: unknown };
         if (typeof event.year !== "number" || typeof event.event !== "string") return validEvents;
 
         const historyEvent: HistoryEvent = { year: event.year, event: event.event };
         if (typeof event.artist === "string" || event.artist === null) historyEvent.artist = event.artist;
         if (typeof event.sourceUrl === "string" || event.sourceUrl === null) historyEvent.sourceUrl = event.sourceUrl;
+        if (event.isKnowledge === true) historyEvent.isKnowledge = true;
         validEvents.push(historyEvent);
         return validEvents;
       }, [])

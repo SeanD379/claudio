@@ -2,17 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useAnimation } from "framer-motion";
-import { Send, X, Volume2, VolumeX, Loader2, Sparkles, Maximize2, Minimize2, Play, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
-import { useTTS } from "@/hooks/useTTS";
+import { Send, X, Sparkles, Maximize2, Minimize2, Play, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { usePlayer } from "@/hooks/usePlayer";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAuthContext } from "@/app/components/auth/AuthProvider";
 import { create } from "zustand";
-
-interface FloatingAvatarProps {
-  narration: string | null;
-  onNarrationDismiss: () => void;
-}
 
 interface ChatSong {
   title: string;
@@ -24,7 +18,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
-  type?: "narration" | "chat";
+  type?: "chat";
   reaction?: string;
   songs?: ChatSong[] | null;
 }
@@ -143,13 +137,9 @@ function SongList({ songs, isExpanded }: { songs: ChatSong[]; isExpanded: boolea
   );
 }
 
-export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatarProps) {
+export function FloatingAvatar() {
   const { lang } = useTranslation();
   const { isLoggedIn, showLoginModal } = useAuthContext();
-  const isSpeaking = useTTS((s) => s.isPlaying);
-  const ttsLoading = useTTS((s) => s.isLoading);
-  const ttsEnabled = useTTS((s) => s.enabled);
-  const { speak, stop: stopTTS, toggle: toggleTTS, currentMessageId } = useTTS();
   const searchAndPlay = usePlayer((s) => s.searchAndPlay);
   const { messages, addMessage, updateReaction } = useChatStore();
 
@@ -236,40 +226,7 @@ export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatar
     setAvatarPos({ x: initX, y: initY });
   }, [controls]);
 
-  // 旁白 + 气泡（TTS播放结束后5秒消失，超时兜底）
-  useEffect(() => {
-    if (!narration) return;
-    addMessage({ id: `narration-${Date.now()}`, role: "assistant", content: narration, timestamp: Date.now(), type: "narration" });
-    if (!isOpen) {
-      setBubbleText(narration);
-      setShowBubble(true);
-      if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
-      let ttsHasStarted = false;
-      let dismissed = false;
-      const dismiss = () => {
-        if (dismissed) return;
-        dismissed = true;
-        setShowBubble(false);
-      };
-      const checkAndDismiss = () => {
-        if (dismissed) return;
-        const playing = useTTS.getState().isPlaying;
-        if (playing) {
-          ttsHasStarted = true;
-          bubbleTimeoutRef.current = setTimeout(checkAndDismiss, 300);
-        } else if (ttsHasStarted) {
-          bubbleTimeoutRef.current = setTimeout(dismiss, 5000);
-        } else {
-          bubbleTimeoutRef.current = setTimeout(checkAndDismiss, 300);
-        }
-      };
-      bubbleTimeoutRef.current = setTimeout(checkAndDismiss, 300);
-      setTimeout(dismiss, 15000);
-    }
-    onNarrationDismiss();
-  }, [narration, onNarrationDismiss, isOpen, addMessage]);
-
-  // AI回复气泡（TTS播放结束后5秒消失，超时兜底）
+  // AI回复气泡（5秒后自动消失）
   useEffect(() => {
     if (messages.length === 0) return;
     const last = messages[messages.length - 1];
@@ -277,27 +234,7 @@ export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatar
       setBubbleText(last.content);
       setShowBubble(true);
       if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
-      let ttsHasStarted = false;
-      let dismissed = false;
-      const dismiss = () => {
-        if (dismissed) return;
-        dismissed = true;
-        setShowBubble(false);
-      };
-      const checkAndDismiss = () => {
-        if (dismissed) return;
-        const playing = useTTS.getState().isPlaying;
-        if (playing) {
-          ttsHasStarted = true;
-          bubbleTimeoutRef.current = setTimeout(checkAndDismiss, 300);
-        } else if (ttsHasStarted) {
-          bubbleTimeoutRef.current = setTimeout(dismiss, 5000);
-        } else {
-          bubbleTimeoutRef.current = setTimeout(checkAndDismiss, 300);
-        }
-      };
-      bubbleTimeoutRef.current = setTimeout(checkAndDismiss, 300);
-      setTimeout(dismiss, 15000);
+      bubbleTimeoutRef.current = setTimeout(() => setShowBubble(false), 5000);
     }
   }, [messages, isOpen]);
 
@@ -323,13 +260,12 @@ export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatar
         songs: data.songs || null,
       });
       if (data.searchKeyword) searchAndPlay(data.searchKeyword);
-      speak(data.reply, lang, msgId);
     } catch {
       addMessage({ id: `error-${Date.now()}`, role: "assistant", content: lang === "en" ? "Oops, something went wrong." : "哎呀，出了点问题。", timestamp: Date.now(), type: "chat" });
     } finally {
       setIsLoading(false);
     }
-  }, [lang, messages, searchAndPlay, speak, addMessage]);
+  }, [lang, messages, searchAndPlay, addMessage]);
 
   // 重新生成推荐
   const regenerate = useCallback((msg: ChatMessage) => {
@@ -420,7 +356,7 @@ export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatar
                   <div>
                     <h3 className="text-base font-semibold text-text-primary">Claudio</h3>
                     <p className="text-[11px] text-text-muted">
-                      {isSpeaking ? (lang === "en" ? "Speaking..." : "说话中...") : (lang === "en" ? "Online" : "在线")}
+                      {lang === "en" ? "Online" : "在线"}
                     </p>
                   </div>
                 </div>
@@ -429,9 +365,6 @@ export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatar
                     className="p-1.5 rounded-lg text-text-muted hover:text-text-secondary hover:bg-surface-elevated transition-colors"
                     title={isExpanded ? (lang === "en" ? "Shrink" : "缩小") : (lang === "en" ? "Expand" : "放大")}>
                     {isExpanded ? <Minimize2 className="w-4.5 h-4.5" /> : <Maximize2 className="w-4.5 h-4.5" />}
-                  </button>
-                  <button onClick={toggleTTS} className={`p-1.5 rounded-lg transition-colors ${ttsEnabled ? "text-accent hover:bg-accent/10" : "text-text-muted hover:bg-surface-elevated"}`}>
-                    {ttsEnabled ? <Volume2 className="w-4.5 h-4.5" /> : <VolumeX className="w-4.5 h-4.5" />}
                   </button>
                   <button onClick={() => { setIsOpen(false); setActiveReaction(null); }} className="p-1.5 rounded-lg text-text-muted hover:text-text-secondary hover:bg-surface-elevated transition-colors">
                     <X className="w-4.5 h-4.5" />
@@ -453,31 +386,15 @@ export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatar
                           <motion.div
                             className={`rounded-2xl px-4 py-3 text-[15px] leading-relaxed cursor-pointer select-none ${
                               msg.role === "user" ? "bg-accent/15 text-text-primary rounded-br-md"
-                                : msg.type === "narration" ? "bg-gradient-to-br from-accent/10 to-purple-500/10 text-text-primary rounded-bl-md border border-accent/20"
                                 : "bg-surface-elevated text-text-primary rounded-bl-md"
                             } ${activeReaction === msg.id ? "ring-1 ring-accent/30" : ""}`}
                             onClick={(e) => { e.stopPropagation(); if (msg.role === "assistant") setActiveReaction(activeReaction === msg.id ? null : msg.id); }}
                             whileTap={{ scale: 0.98 }}>
-                            {msg.type === "narration" && (
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                <Sparkles className="w-3.5 h-3.5 text-accent" />
-                                <span className="text-xs text-accent font-medium">{lang === "en" ? "Narration" : "旁白"}</span>
-                              </div>
-                            )}
                             <p className="whitespace-pre-wrap">{msg.content}</p>
 
                             {/* 歌曲推荐列表 */}
                             {msg.songs && msg.songs.length > 0 && (
                               <SongList songs={msg.songs} isExpanded={isExpanded} />
-                            )}
-
-                            {msg.role === "assistant" && ttsEnabled && (
-                              <button onClick={(e) => { e.stopPropagation(); currentMessageId === msg.id ? stopTTS() : speak(msg.content, lang, msg.id); }}
-                                disabled={ttsLoading && currentMessageId !== msg.id}
-                                className="mt-1.5 flex items-center gap-1 text-xs text-text-muted hover:text-accent transition-colors">
-                                {ttsLoading && currentMessageId === msg.id ? <Loader2 className="w-3 h-3 animate-spin" /> : currentMessageId === msg.id ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
-                                {currentMessageId === msg.id ? (lang === "en" ? "Stop" : "停止") : (lang === "en" ? "Read" : "朗读")}
-                              </button>
                             )}
 
                             {/* 重新生成按钮（仅推荐歌曲消息） */}
@@ -611,15 +528,10 @@ export function FloatingAvatar({ narration, onNarrationDismiss }: FloatingAvatar
             <motion.div className="absolute inset-0 rounded-full" style={{ backgroundColor: "var(--accent)" }}
               animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} />
           )}
-          <motion.div className={`w-14 h-14 rounded-full backdrop-blur-xl border-2 flex items-center justify-center shadow-lg transition-colors ${isSpeaking ? "border-accent" : isOpen ? "border-accent/50" : "border-white/10"}`}
-            style={{ backgroundColor: "color-mix(in srgb, var(--surface) 90%, transparent)" }}
-            animate={isSpeaking ? { scale: [1, 1.05, 1] } : {}} transition={{ duration: 0.5, repeat: isSpeaking ? Infinity : 0 }}>
+          <motion.div className={`w-14 h-14 rounded-full backdrop-blur-xl border-2 flex items-center justify-center shadow-lg transition-colors ${isOpen ? "border-accent/50" : "border-white/10"}`}
+            style={{ backgroundColor: "color-mix(in srgb, var(--surface) 90%, transparent)" }}>
             <span className="text-2xl">🎵</span>
           </motion.div>
-          {isSpeaking && (
-            <motion.div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-accent"
-              animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }} />
-          )}
         </div>
       </motion.div>
     </div>

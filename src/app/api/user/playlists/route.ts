@@ -60,6 +60,22 @@ export async function POST(request: NextRequest) {
       create: { id: userId },
     });
 
+    if (source === "manual") {
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      if (!name) {
+        return NextResponse.json({ error: "name is required" }, { status: 400 });
+      }
+
+      const playlist = await prisma.playlist.create({
+        data: { userId, name },
+      });
+
+      return NextResponse.json({
+        success: true,
+        playlist: { id: playlist.id, name: playlist.name },
+      });
+    }
+
     if (source === "file") {
       // 从导出文件导入
       const { playlistIds } = body as { playlistIds: number[] };

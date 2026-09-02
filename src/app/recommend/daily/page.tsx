@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Play, Heart, Music, Loader2 } from "lucide-react";
+import { ArrowLeft, Play, Music, Loader2 } from "lucide-react";
 import { usePlayer, Song } from "@/hooks/usePlayer";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useAuthContext } from "@/app/components/auth/AuthProvider";
@@ -12,13 +12,12 @@ export default function DailyRecommendPage() {
   const router = useRouter();
   const { isLoggedIn, showLoginModal } = useAuthContext();
   const { playSong, currentSong, isPlaying, setPlaylist, setAndPlay, playHistory } = usePlayer();
-  const { setSourceModule } = useNavigation();
+  const { setReturnPath } = useNavigation();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setSourceModule("daily");
     // 未登录时显示登录弹窗
     if (!isLoggedIn) {
       showLoginModal();
@@ -51,11 +50,13 @@ export default function DailyRecommendPage() {
 
   const handlePlayAll = () => {
     if (songs.length === 0) return;
+    setReturnPath("/recommend/daily");
     setAndPlay(songs, songs[0]);
     router.push("/");
   };
 
   const handlePlaySong = (song: Song) => {
+    setReturnPath("/recommend/daily");
     setAndPlay(songs, song);
     router.push("/");
   };
@@ -68,6 +69,7 @@ export default function DailyRecommendPage() {
 
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}.${today.getDate()}`;
+  const heroCover = songs[0]?.coverUrl;
 
   return (
     <div className="h-full overflow-y-auto" style={{ background: "#121212" }}>
@@ -107,72 +109,43 @@ export default function DailyRecommendPage() {
           </div>
         ) : (
           <>
-            {/* 封面卡片 */}
-            <motion.div
-              className="rounded-2xl p-8 mb-6 relative overflow-hidden"
-              style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="relative z-10">
-                <div className="text-7xl font-bold mb-4" style={{ color: "rgba(255,255,255,0.15)" }}>
-                  {dateStr}
+            <motion.section className="relative mb-8 overflow-hidden rounded-3xl border p-5 sm:p-7" style={{ background: "linear-gradient(118deg, #18322a 0%, #13211d 48%, #101314 100%)", borderColor: "rgba(30,215,96,0.16)" }} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              <div className="absolute -right-12 -top-20 h-72 w-72 rounded-full bg-[#1ed760]/15 blur-3xl" />
+              <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-end">
+                <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl shadow-2xl sm:h-44 sm:w-44" style={{ background: "linear-gradient(145deg, #1ed760, #143a28)" }}>
+                  {heroCover ? <img src={heroCover} alt="今日推荐封面" className="h-full w-full object-cover" /> : <Music className="absolute inset-0 m-auto h-10 w-10 text-black/50" />}
+                  <span className="absolute inset-x-0 bottom-0 bg-black/45 px-3 py-2 text-xs font-semibold tracking-[0.16em] text-white backdrop-blur-sm">DAILY MIX</span>
                 </div>
-                <h2 className="text-3xl font-bold mb-2" style={{ color: "#ffffff" }}>每日推荐</h2>
-                <p className="text-sm mb-1" style={{ color: "#b3b3b3" }}>
-                  {songs.length} 首歌曲为你精心准备
-                </p>
-                <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  {playHistory.length > 0
-                    ? "根据你最近的听歌习惯推荐"
-                    : "为你精选的今日好歌"
-                  }
-                </p>
+                <div className="min-w-0 flex-1">
+                  <p className="mb-2 text-[11px] font-semibold tracking-[0.24em] text-[#1ed760]">FOR YOU · {dateStr}</p>
+                  <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">每日推荐</h2>
+                  <p className="mt-2 text-sm text-[#b8c5be]">{playHistory.length > 0 ? "根据你最近的听歌习惯，为你编排今天的声音。" : "一份适合今天开始播放的精选歌单。"}</p>
+                  <p className="mt-1 text-xs text-[#7f9388]">{songs.length} 首歌曲 · 每天更新</p>
+                  <motion.button onClick={handlePlayAll} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#1ed760] px-5 text-sm font-semibold text-[#07150c] shadow-[0_10px_24px_rgba(30,215,96,0.22)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" whileTap={{ scale: 0.96 }}>
+                    <Play className="h-4 w-4 fill-current" /> 播放全部
+                  </motion.button>
+                </div>
+                <div className="hidden self-start text-right sm:block"><p className="text-5xl font-semibold tracking-tighter text-white/15">{dateStr}</p><p className="mt-1 text-[10px] font-semibold tracking-[0.22em] text-white/35">TODAY&apos;S SELECTION</p></div>
               </div>
-              {/* 装饰性背景元素 */}
-              <div
-                className="absolute top-4 right-4 w-32 h-32 rounded-full opacity-10"
-                style={{ background: "#1ed760", filter: "blur(40px)" }}
-              />
-            </motion.div>
+            </motion.section>
 
-            {/* 操作按钮 */}
-            <div className="flex gap-3 mb-6">
-              <motion.button
-                onClick={handlePlayAll}
-                className="flex items-center gap-2 px-6 py-3 rounded-full transition-all"
-                style={{ background: "#1ed760", color: "#000000" }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-              >
-                <Play className="w-5 h-5 fill-current" />
-                <span className="text-sm font-semibold uppercase tracking-wider">播放全部</span>
-              </motion.button>
-            </div>
-
-            {/* 歌曲列表 */}
-            <div className="space-y-1">
+            <h3 className="mb-3 text-base font-semibold text-white">推荐歌曲</h3>
+            <div className="overflow-hidden rounded-2xl border" style={{ background: "#151617", borderColor: "rgba(255,255,255,0.08)" }}>
+              <div className="hidden grid-cols-[52px_minmax(0,1.4fr)_minmax(120px,0.8fr)_60px] items-center gap-4 border-b px-5 py-3 text-[11px] font-medium text-[#767b78] sm:grid" style={{ borderColor: "rgba(255,255,255,0.07)" }}><span>#</span><span>歌曲</span><span>歌手</span><span className="text-right">时长</span></div>
               {songs.map((song, index) => {
                 const isCurrent = currentSong?.neteaseId === song.neteaseId;
                 return (
                   <motion.div
                     key={song.neteaseId}
-                    className="flex items-center gap-4 p-3 rounded-xl cursor-pointer group transition-colors"
-                    style={{
-                      background: isCurrent ? "rgba(30, 215, 96, 0.1)" : "transparent",
-                    }}
-                    initial={{ opacity: 0, y: 10 }}
+                    className="group grid cursor-pointer grid-cols-[32px_48px_minmax(0,1fr)_52px] items-center gap-3 border-b px-3 py-2.5 transition-colors last:border-0 sm:grid-cols-[40px_48px_minmax(0,1.4fr)_minmax(120px,0.8fr)_60px] sm:px-5"
+                    style={{ background: isCurrent ? "rgba(30,215,96,0.10)" : "transparent", borderColor: "rgba(255,255,255,0.06)" }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.05 * index }}
-                    whileHover={{ backgroundColor: "#181818" }}
+                    transition={{ duration: 0.2, delay: Math.min(index * 0.025, 0.3) }}
+                    whileHover={{ backgroundColor: isCurrent ? "rgba(30,215,96,0.14)" : "#202220" }}
                     onClick={() => handlePlaySong(song)}
                   >
-                    {/* 序号 */}
-                    <div className="w-8 text-center flex-shrink-0">
+                    <div className="text-center">
                       {isCurrent && isPlaying ? (
                         <div className="flex items-center justify-center gap-0.5">
                           <div className="w-1 h-3 rounded-full animate-pulse" style={{ background: "#1ed760" }} />
@@ -180,14 +153,13 @@ export default function DailyRecommendPage() {
                           <div className="w-1 h-2 rounded-full animate-pulse" style={{ background: "#1ed760", animationDelay: "0.3s" }} />
                         </div>
                       ) : (
-                        <span className="text-sm" style={{ color: isCurrent ? "#1ed760" : "#b3b3b3" }}>
+                        <span className="text-sm tabular-nums" style={{ color: isCurrent ? "#1ed760" : "#8d928f" }}>
                           {index + 1}
                         </span>
                       )}
                     </div>
 
-                    {/* 封面 */}
-                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0" style={{ background: "#282828" }}>
+                    <div className="h-12 w-12 overflow-hidden rounded-lg" style={{ background: "#282828" }}>
                       {song.coverUrl ? (
                         <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
                       ) : (
@@ -197,44 +169,22 @@ export default function DailyRecommendPage() {
                       )}
                     </div>
 
-                    {/* 歌曲信息 */}
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0">
                       <p
                         className="text-sm font-medium truncate"
                         style={{ color: isCurrent ? "#1ed760" : "#ffffff" }}
                       >
                         {song.title}
                       </p>
-                      <p className="text-xs truncate" style={{ color: "#b3b3b3" }}>
-                        {song.artist}
-                      </p>
+                      <p className="mt-0.5 truncate text-xs text-[#8d928f] sm:hidden">{song.artist}</p>
                     </div>
-
-                    {/* 时长 */}
-                    <span className="text-xs flex-shrink-0" style={{ color: "#b3b3b3" }}>
-                      {formatDuration(song.duration)}
-                    </span>
-
-                    {/* 收藏按钮 */}
-                    <motion.button
-                      className="p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                      style={{ color: "#b3b3b3" }}
-                      whileHover={{ scale: 1.1, color: "#1ed760" }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: 实现收藏功能
-                      }}
-                    >
-                      <Heart className="w-4 h-4" />
-                    </motion.button>
+                    <p className="hidden truncate text-sm text-[#a5aaa7] sm:block">{song.artist}</p>
+                    <span className="text-right text-xs tabular-nums text-[#8d928f]">{formatDuration(song.duration)}</span>
                   </motion.div>
                 );
               })}
             </div>
-
-            {/* 底部留白 */}
-            <div className="h-8" />
+            <div className="h-10" />
           </>
         )}
       </div>

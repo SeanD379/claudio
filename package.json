@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:music-history": "tsx --test src/app/lib/music-history.test.ts",
-    "test:ktv-stage": "tsx --test src/app/lib/ktv-stage-motion.test.ts"
+    "test:concert-stage": "tsx --test src/app/lib/concert-stage-motion.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -17,6 +17,8 @@
     "mysql2": "^3.22.3",
     "NeteaseCloudMusicApi": "^4.32.0",
     "next": "16.2.6",
+    "ogl": "^1.0.11",
+    "opencc-js": "^1.4.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zustand": "^5.0.13"

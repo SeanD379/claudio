@@ -5,7 +5,7 @@ import { useAudioAnalyzer, type MoodType } from "@/hooks/useAudioAnalyzer";
 import { useMoodLock } from "@/hooks/useMoodLock";
 import { useTheme } from "@/hooks/useTheme";
 import { usePlayer } from "@/hooks/usePlayer";
-import { getStageMotion } from "@/app/lib/ktv-stage-motion";
+import { getStageMotion } from "@/app/lib/concert-stage-motion";
 import { extractColorsFromImage } from "@/app/lib/colorExtractor";
 
 const MOOD: Record<MoodType, { primary: number[]; secondary: number[]; accent: number[] }> = {
@@ -45,7 +45,7 @@ function blendColors(current: Colors, target: Colors, amount: number): Colors {
   };
 }
 
-export function KtvStage() {
+export function ConcertStage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const coverUrl = usePlayer((state) => state.currentSong?.coverUrl);
   const stageImageRef = useRef<HTMLImageElement | null>(null);
@@ -160,7 +160,7 @@ export function KtvStage() {
     const stageImage = new Image();
     stageImageRef.current = stageImage;
     stageImage.onload = reconcileAnimation;
-    stageImage.src = "/ktv/immersive-stage-reference.png";
+    stageImage.src = "/concert/immersive-stage-reference.png";
 
     resize();
     window.addEventListener("resize", resize);

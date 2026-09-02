@@ -5,7 +5,6 @@ import { create } from "zustand";
 interface ThemeState {
   theme: "light" | "dark";
   language: "zh" | "en";
-  narrationEnabled: boolean;
   autoPlay: boolean;
   quickSwitch: boolean;
   dynamicBg: boolean;
@@ -13,7 +12,6 @@ interface ThemeState {
 
   setTheme: (theme: "light" | "dark") => void;
   setLanguage: (lang: "zh" | "en") => void;
-  setNarrationEnabled: (enabled: boolean) => void;
   setAutoPlay: (enabled: boolean) => void;
   setQuickSwitch: (enabled: boolean) => void;
   setDynamicBg: (enabled: boolean) => void;
@@ -25,7 +23,6 @@ interface ThemeState {
 export const useTheme = create<ThemeState>((set, get) => ({
   theme: "light",
   language: "zh",
-  narrationEnabled: false,
   autoPlay: false,
   quickSwitch: false,
   dynamicBg: true,
@@ -39,10 +36,6 @@ export const useTheme = create<ThemeState>((set, get) => ({
   setLanguage: (language) => {
     set({ language });
     document.documentElement.lang = language;
-  },
-
-  setNarrationEnabled: (narrationEnabled) => {
-    set({ narrationEnabled });
   },
 
   setAutoPlay: (autoPlay) => {
@@ -80,8 +73,8 @@ export const useTheme = create<ThemeState>((set, get) => ({
       const response = await fetch("/api/user/settings");
       if (response.ok) {
         const data = await response.json();
-        const { theme, language, narrationEnabled, autoPlay, quickSwitch, dynamicBg } = data;
-        const settings = { theme, language, narrationEnabled, autoPlay, quickSwitch, dynamicBg };
+        const { theme, language, autoPlay, quickSwitch, dynamicBg } = data;
+        const settings = { theme, language, autoPlay, quickSwitch, dynamicBg };
         set({ ...settings, isLoading: false });
 
         // 更新缓存
@@ -98,8 +91,8 @@ export const useTheme = create<ThemeState>((set, get) => ({
   },
 
   saveSettings: async () => {
-    const { theme, language, narrationEnabled, autoPlay, quickSwitch, dynamicBg } = get();
-    const settings = { theme, language, narrationEnabled, autoPlay, quickSwitch, dynamicBg };
+    const { theme, language, autoPlay, quickSwitch, dynamicBg } = get();
+    const settings = { theme, language, autoPlay, quickSwitch, dynamicBg };
     try {
       const res = await fetch("/api/user/settings", {
         method: "PUT",

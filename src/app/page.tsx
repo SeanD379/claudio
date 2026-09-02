@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 import { Player } from "./components/home/Player";
@@ -8,12 +8,11 @@ import { Lyrics } from "./components/home/Lyrics";
 import { SilkBackground } from "./components/home/SilkBackground";
 import { ModeSwitcher } from "./components/home/ModeSwitcher";
 import { MusicHall } from "./components/home/MusicHall";
-import { KtvStage } from "./components/ktv/KtvStage";
-import { KtvLyrics } from "./components/ktv/KtvLyrics";
-import { KtvOpening } from "./components/ktv/KtvOpening";
+import { ConcertStage } from "./components/concert/ConcertStage";
+import { ConcertLyrics } from "./components/concert/ConcertLyrics";
+import { ConcertOpening } from "./components/concert/ConcertOpening";
 import { CircularPlaylist } from "./components/home/CircularPlaylist";
 import { usePlayer } from "@/hooks/usePlayer";
-import { useNarration } from "@/hooks/useNarration";
 import { useMode } from "@/hooks/useMode";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useAudioAnalyzer } from "@/hooks/useAudioAnalyzer";
@@ -22,7 +21,6 @@ import { useAuthContext } from "./components/auth/AuthProvider";
 const FloatingAvatar = dynamic(() => import("./components/home/FloatingAvatar").then(m => ({ default: m.FloatingAvatar })), { ssr: false });
 
 export default function Home() {
-  const [currentNarration, setCurrentNarration] = useState<string | null>(null);
   const { mode, showHall, setShowHall } = useMode();
   const { playAllSongs } = usePlaylists();
   const analyzerInit = useRef(false);
@@ -35,11 +33,6 @@ export default function Home() {
     return typeof window !== "undefined" && sessionStorage.getItem("claudio-concert-opening-seen") === "1";
   });
 
-  // 旁白回调
-  const handleNarration = useCallback((_song: unknown, narration: string) => {
-    setCurrentNarration(narration);
-  }, []);
-
   // 开始播放：加载所有歌单歌曲并随机播放
   const handleStartPlay = useCallback(async () => {
     // 未登录时直接进入播放器空状态
@@ -50,9 +43,6 @@ export default function Home() {
     await playAllSongs();
     setShowHall(false);
   }, [isLoggedIn, playAllSongs, setShowHall]);
-
-  // 注册旁白系统
-  useNarration(handleNarration);
 
   // 进入演唱会模式时初始化音频分析器
   useEffect(() => {
@@ -193,7 +183,9 @@ export default function Home() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <MusicHall onEnterPlayer={() => setShowHall(false)} onStartPlay={handleStartPlay} />
+            <Suspense fallback={null}>
+              <MusicHall onEnterPlayer={() => setShowHall(false)} onStartPlay={handleStartPlay} />
+            </Suspense>
           </motion.div>
         ) : (
           <motion.div
@@ -227,10 +219,7 @@ export default function Home() {
                   <Player />
                 </motion.div>
 
-                <FloatingAvatar
-                  narration={currentNarration}
-                  onNarrationDismiss={() => setCurrentNarration(null)}
-                />
+                <FloatingAvatar />
 
                 {/* 右侧弧形歌单 */}
                 <CircularPlaylist />
@@ -242,7 +231,7 @@ export default function Home() {
 
       {/* 演唱会开场过渡 — 覆盖在当前内容之上 */}
       {showOpening && (
-        <KtvOpening
+        <ConcertOpening
           onDone={() => {
             setShowOpening(false);
             setOpeningDone(true);
@@ -254,8 +243,8 @@ export default function Home() {
       {/* 演唱会模式 — 开场完成后渲染 */}
       {mode === "concert" && openingDone && (
         <>
-          <KtvStage />
-          <KtvLyrics />
+          <ConcertStage />
+          <ConcertLyrics />
           <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6 pointer-events-none">
             <div className="pointer-events-auto">
               <Player />

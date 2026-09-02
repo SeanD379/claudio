@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { estimateBpm, getStageMotion } from "./ktv-stage-motion";
+import { estimateBpm, getStageMotion } from "./concert-stage-motion";
 
 test("estimates a confident 120 BPM from steady half-second beats", () => {
   assert.deepEqual(estimateBpm([0, 500, 1000, 1500, 2000, 2500]), {

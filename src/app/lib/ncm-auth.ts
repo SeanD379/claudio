@@ -154,6 +154,7 @@ export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string 
     // 2. 创建 QR 图片
     const createRes = (await httpGet("/login/qr/create", {
       key: unikey,
+      platform: "web",
       qrimg: "true",
       timestamp: Date.now(),
     })) as {
@@ -183,6 +184,7 @@ export async function checkQrStatus(uniKey: string): Promise<{
   try {
     const res = (await httpGet("/login/qr/check", {
       key: uniKey,
+      noCookie: "true",
       timestamp: Date.now(),
     })) as {
       code?: number;

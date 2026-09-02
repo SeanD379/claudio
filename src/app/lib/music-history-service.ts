@@ -3,7 +3,12 @@ import musicHistory from "@/data/music-history.json";
 import { prisma } from "@/app/lib/db";
 import {
   allocateUnseenCandidates,
+  buildMusicHistoryNarrative,
+  buildMusicKnowledgeCandidates,
   buildLocalCandidates,
+  isBiographicalMusicListing,
+  isMusicHistoryHighlight,
+  MUSIC_KNOWLEDGE_PREFIX,
   parseMusicHistoryWikitext,
   type HistoryCandidate,
   type LocalHistoryEvent,
@@ -19,6 +24,7 @@ export interface HistoryApiEvent {
   event: string;
   artist: string | null;
   sourceUrl: string | null;
+  isKnowledge?: boolean;
 }
 
 export interface HistoryBatchResult {
@@ -42,6 +48,16 @@ interface WikimediaResponse {
   };
 }
 
+interface WikimediaArticleSummaryResponse {
+  title?: string;
+  extract?: string;
+  content_urls?: {
+    desktop?: {
+      page?: string;
+    };
+  };
+}
+
 type HistoryEventRecord = {
   eventYear: number;
   event: string;
@@ -49,12 +65,26 @@ type HistoryEventRecord = {
   sourceUrl: string | null;
 };
 
+const knowledgePool = Object.values(
+  musicHistory as Record<string, LocalHistoryEvent[]>,
+)
+  .flat()
+  .filter((event) => isMusicHistoryHighlight(event.event));
+
 export async function getOrCreateHistoryBatch(
   date: ParsedHistoryDate,
 ): Promise<HistoryBatchResult> {
   const stored = await readStoredBatch(date.monthDay, date.displayYear);
-  if (stored.length > 0) {
-    return toResult(stored, "stored", true, false);
+  const usefulStored = stored.filter(
+    (entry) => !isBiographicalMusicListing(entry.event),
+  );
+  if (usefulStored.length > 0) {
+    return toResult(
+      await fillStoredBatch(date, usefulStored),
+      "stored",
+      true,
+      false,
+    );
   }
 
   let source: HistoryBatchResult["source"] = "wikimedia";
@@ -70,10 +100,7 @@ export async function getOrCreateHistoryBatch(
   }
 
   if (candidates.length === 0) {
-    candidates = buildLocalCandidates(
-      date.monthDay,
-      (musicHistory as Record<string, LocalHistoryEvent[]>)[date.monthDay] ?? [],
-    );
+    candidates = buildDayLocalCandidates(date);
     source = "local";
   }
 
@@ -91,16 +118,21 @@ export async function getOrCreateHistoryBatch(
   );
 
   if (batch.length === 0 && source === "wikimedia") {
-    candidates = buildLocalCandidates(
-      date.monthDay,
-      (musicHistory as Record<string, LocalHistoryEvent[]>)[date.monthDay] ?? [],
-    );
+    candidates = buildDayLocalCandidates(date);
     source = "local";
     batch = allocateUnseenCandidates(candidates, usedFingerprints, BATCH_SIZE);
   }
 
+  batch = fillBatchWithKnowledge(date, batch, usedFingerprints);
+
   if (batch.length === 0) {
     return toResult([], source, false, true);
+  }
+
+  batch = await enrichCandidates(batch);
+
+  if (stored.length > 0) {
+    return toResult(batch, source, false, false);
   }
 
   for (let retries = 0; ; retries += 1) {
@@ -128,11 +160,13 @@ export async function getOrCreateHistoryBatch(
         where: { monthDay: date.monthDay },
         select: { fingerprint: true },
       });
+      const retryUsedFingerprints = new Set(usedEntries.map((entry) => entry.fingerprint));
       batch = allocateUnseenCandidates(
         candidates,
-        new Set(usedEntries.map((entry) => entry.fingerprint)),
+        retryUsedFingerprints,
         BATCH_SIZE,
       );
+      batch = fillBatchWithKnowledge(date, batch, retryUsedFingerprints);
 
       if (batch.length === 0) {
         return toResult([], source, false, true);
@@ -162,6 +196,7 @@ async function fetchWikimediaCandidates(
     titles: title,
     format: "json",
     formatversion: "2",
+    variant: "zh-hans",
     origin: "*",
   });
 
@@ -189,6 +224,157 @@ async function fetchWikimediaCandidates(
     const payload = (await response.json()) as WikimediaResponse;
     const content = payload.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content;
     return content ? parseMusicHistoryWikitext(content, date.monthDay) : [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildDayLocalCandidates(date: ParsedHistoryDate): HistoryCandidate[] {
+  return buildLocalCandidates(
+    date.monthDay,
+    (musicHistory as Record<string, LocalHistoryEvent[]>)[date.monthDay] ?? [],
+  ).filter((candidate) => isMusicHistoryHighlight(candidate.event));
+}
+
+function fillBatchWithKnowledge(
+  date: ParsedHistoryDate,
+  batch: HistoryCandidate[],
+  usedFingerprints: ReadonlySet<string>,
+): HistoryCandidate[] {
+  if (batch.length >= BATCH_SIZE) {
+    return batch;
+  }
+
+  const selectedFingerprints = new Set([
+    ...usedFingerprints,
+    ...batch.map((candidate) => candidate.fingerprint),
+  ]);
+  const knowledge = buildMusicKnowledgeCandidates(
+    date.monthDay,
+    date.displayYear,
+    knowledgePool,
+    BATCH_SIZE - batch.length,
+  );
+
+  return [
+    ...batch,
+    ...allocateUnseenCandidates(
+      knowledge,
+      selectedFingerprints,
+      BATCH_SIZE - batch.length,
+    ),
+  ];
+}
+
+async function enrichStoredEntries(
+  entries: HistoryEventRecord[],
+): Promise<HistoryEventRecord[]> {
+  const candidates = entries.map((entry) => ({
+    eventYear: entry.eventYear,
+    event: entry.event,
+    artist: entry.artist,
+    sourceType: "wikimedia" as const,
+    sourceTitle: "",
+    sourceUrl: entry.sourceUrl,
+    fingerprint: "",
+  }));
+  const enriched = await enrichCandidates(candidates);
+
+  return enriched.map((entry) => ({
+    eventYear: entry.eventYear,
+    event: entry.event,
+    artist: entry.artist,
+    sourceUrl: entry.sourceUrl,
+  }));
+}
+
+async function fillStoredBatch(
+  date: ParsedHistoryDate,
+  entries: HistoryEventRecord[],
+): Promise<HistoryEventRecord[]> {
+  const enriched = await enrichStoredEntries(entries);
+  if (enriched.length >= BATCH_SIZE) {
+    return enriched;
+  }
+
+  const knowledge = buildMusicKnowledgeCandidates(
+    date.monthDay,
+    date.displayYear,
+    knowledgePool,
+    BATCH_SIZE - enriched.length,
+  );
+  return [
+    ...enriched,
+    ...knowledge.map((candidate) => ({
+      eventYear: candidate.eventYear,
+      event: candidate.event,
+      artist: candidate.artist,
+      sourceUrl: candidate.sourceUrl,
+    })),
+  ];
+}
+
+async function enrichCandidates(
+  candidates: HistoryCandidate[],
+): Promise<HistoryCandidate[]> {
+  return Promise.all(
+    candidates.map(async (candidate) => {
+      if (candidate.event.startsWith(MUSIC_KNOWLEDGE_PREFIX)) {
+        return candidate;
+      }
+
+      const articleTitle = candidate.articleTitle ?? getFeatureTitle(candidate.event);
+      const article = articleTitle
+        ? await fetchArticleSummary(articleTitle)
+        : null;
+
+      return buildMusicHistoryNarrative(candidate, article);
+    }),
+  );
+}
+
+function getFeatureTitle(event: string): string | null {
+  const match = event.match(/^([^，,。；;（(]{2,80}?)(?:出道|成立|首演|发行|发布)/);
+  return match?.[1]?.trim() || null;
+}
+
+async function fetchArticleSummary(title: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), WIKIMEDIA_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "Accept-Language": "zh-Hans",
+          "User-Agent": "Claudio-Music-Calendar/1.0 (history feature)",
+        },
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as WikimediaArticleSummaryResponse;
+    if (!payload.title || !payload.extract) {
+      return null;
+    }
+
+    return {
+      title: payload.title,
+      extract: payload.extract,
+      sourceUrl: payload.content_urls?.desktop?.page ?? null,
+    };
+  } catch (error) {
+    console.warn(
+      "Wikimedia article summary request failed",
+      error instanceof Error ? error.message : "unknown error",
+    );
+    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -234,6 +420,9 @@ function toResult(
       event: entry.event,
       artist: entry.artist,
       sourceUrl: entry.sourceUrl,
+      ...(typeof entry.event === "string" && entry.event.startsWith(MUSIC_KNOWLEDGE_PREFIX)
+        ? { isKnowledge: true }
+        : {}),
     })),
     source,
     saved,

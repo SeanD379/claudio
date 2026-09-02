@@ -46,7 +46,6 @@ model UserSetting {
   theme            String   @default("light")  // light | dark
   fontSize         String   @default("medium") // small | medium | large
   language         String   @default("zh")     // zh | en
-  narrationEnabled Boolean  @default(true)     // 是否启用旁白
   autoPlay         Boolean  @default(true)     // 开机自动播放
   quickSwitch      Boolean  @default(false)    // 快速切歌（跳过旁白）
   dynamicBg        Boolean  @default(true)     // 动态背景
@@ -71,7 +70,6 @@ model Song {
   // 关联
   favorites     Favorite[]
   playlistSongs PlaylistSong[]
-  narrations    Narration[]
   playRecords   PlayRecord[]
 }
 
@@ -129,21 +127,6 @@ model ChatHistory {
 
   // 关联
   user      User     @relation(fields: [userId], references: [id])
-}
-
-// 旁白表
-model Narration {
-  id        String   @id @default(cuid())
-  songId    String
-  content   String   @db.Text
-  language  String   @default("zh")  // zh | en
-  context   String?  @db.Text        // 生成时的上下文（时间、场景等）
-  createdAt DateTime @default(now())
-
-  // 关联
-  song      Song     @relation(fields: [songId], references: [id])
-
-  @@unique([songId, language])
 }
 
 // Token 存储表（替代文件存储，支持无服务器环境）

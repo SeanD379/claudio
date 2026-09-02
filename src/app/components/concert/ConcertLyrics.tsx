@@ -28,7 +28,7 @@ function useLyricsPosition() {
   return pos;
 }
 
-export function KtvLyrics() {
+export function ConcertLyrics() {
   const currentSong = usePlayer((s) => s.currentSong);
   const { lyrics, currentIndex, hasLyrics, isLoading, fetchLyrics, reset } = useLyrics();
   const [displayLyric, setDisplayLyric] = useState("");
@@ -140,7 +140,7 @@ function RingLyricText({ text }: { text: string }) {
   return (
     <svg viewBox="0 0 1000 180" className="block h-full w-full overflow-visible" aria-label={text} role="img">
       <defs>
-        <path id="ktv-ring-lyric-path" d="M 45 117 Q 500 57 955 117" fill="none" />
+        <path id="concert-ring-lyric-path" d="M 45 117 Q 500 57 955 117" fill="none" />
       </defs>
       <text
         fontFamily="Inter, 'Helvetica Neue', Arial, sans-serif"
@@ -151,7 +151,7 @@ function RingLyricText({ text }: { text: string }) {
         strokeWidth="0.65"
         style={{ filter: `drop-shadow(0 0 7px rgba(255,255,255,${0.2 + energy * 0.16})) drop-shadow(0 0 16px rgba(255,180,100,${0.09 + energy * 0.1}))` }}
       >
-        <textPath href="#ktv-ring-lyric-path" startOffset="50%" textAnchor="middle" textLength={textLength} lengthAdjust="spacingAndGlyphs">
+        <textPath href="#concert-ring-lyric-path" startOffset="50%" textAnchor="middle" textLength={textLength} lengthAdjust="spacingAndGlyphs">
           {text}
         </textPath>
       </text>

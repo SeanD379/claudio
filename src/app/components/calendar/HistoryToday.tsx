@@ -9,6 +9,7 @@ interface HistoryEvent {
   event: string;
   artist?: string | null;
   sourceUrl?: string | null;
+  isKnowledge?: boolean;
 }
 
 interface HistoryTodayProps {
@@ -50,11 +51,7 @@ export function HistoryToday({ events, state, month, day }: HistoryTodayProps) {
         <p role="status" aria-live="polite" className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
           历史内容暂时无法获取
         </p>
-      ) : state === "exhausted" ? (
-        <p role="status" aria-live="polite" className="py-6 text-center text-xs" style={{ color: "#b3b3b3" }}>
-          暂时没有新的音乐历史事件
-        </p>
-      ) : state === "ready" && sorted.length > 0 ? (
+      ) : state === "exhausted" ? null : state === "ready" && sorted.length > 0 ? (
         <div className="space-y-3">
           {sorted.map((evt, i) => (
           <motion.div
@@ -69,7 +66,7 @@ export function HistoryToday({ events, state, month, day }: HistoryTodayProps) {
               className="text-xs font-bold w-16 flex-shrink-0 text-right pt-0.5 leading-tight"
               style={{ color: "#555", fontFamily: "'Inter', monospace" }}
             >
-              {evt.year}.{String(month).padStart(2, "0")}.{String(day).padStart(2, "0")}
+              {`${evt.year}.${String(month).padStart(2, "0")}.${String(day).padStart(2, "0")}`}
             </div>
 
             {/* 分隔线 */}
@@ -86,7 +83,7 @@ export function HistoryToday({ events, state, month, day }: HistoryTodayProps) {
             {/* 事件 */}
             <div className="pb-1">
               <p className="text-sm leading-relaxed" style={{ color: "#b3b3b3" }}>
-                {evt.event}
+                {evt.event.replace(/^音乐知识回顾｜/, "")}
               </p>
               {evt.artist && (
                 <p className="text-xs mt-1" style={{ color: "#1ed760" }}>

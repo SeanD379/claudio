@@ -13,6 +13,9 @@ interface NavigationState {
 
   // 获取来源模块并清除
   popSourceModule: () => ModuleId | null;
+  returnPath: string | null;
+  setReturnPath: (path: string | null) => void;
+  popReturnPath: () => string | null;
 }
 
 export const useNavigation = create<NavigationState>((set, get) => ({
@@ -26,5 +29,13 @@ export const useNavigation = create<NavigationState>((set, get) => ({
     const { sourceModule } = get();
     set({ sourceModule: null });
     return sourceModule;
+  },
+
+  returnPath: null,
+  setReturnPath: (path) => set({ returnPath: path }),
+  popReturnPath: () => {
+    const { returnPath } = get();
+    set({ returnPath: null });
+    return returnPath;
   },
 }));

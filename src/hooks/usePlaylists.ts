@@ -41,6 +41,7 @@ interface PlaylistsState {
   fetchNeteasePlaylists: () => Promise<ImportablePlaylist[]>;
   importFromExport: (playlistIds: number[]) => Promise<void>;
   importFromNetease: (neteasePlaylistId: string) => Promise<void>;
+  createPlaylist: (name: string) => Promise<void>;
   deletePlaylist: (playlistId: string) => Promise<void>;
   syncPlaylist: (playlistId: string) => Promise<SyncResult>;
   playPlaylist: (playlistId: string) => Promise<void>;
@@ -130,6 +131,21 @@ export const usePlaylists = create<PlaylistsState>((set, get) => ({
       console.error("Failed to import from netease:", error);
       throw error;
     }
+  },
+
+  createPlaylist: async (name: string) => {
+    const res = await fetch("/api/user/playlists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "manual", name }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || "创建歌单失败");
+    }
+
+    await get().fetchPlaylists();
   },
 
   deletePlaylist: async (playlistId: string) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { estimateBpm } from "@/app/lib/ktv-stage-motion";
+import { estimateBpm } from "@/app/lib/concert-stage-motion";
 import { usePlayer } from "./usePlayer";
 
 export type MoodType = "tech" | "warm" | "redGold" | "minimal" | "cyber" | "rainbow";
