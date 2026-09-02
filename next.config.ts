@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
       "./node_modules/xml2js/**",
       "./node_modules/xmlbuilder/**",
       "./node_modules/sax/**",
+      "./node_modules/qrcode/**",
+      "./node_modules/dijkstrajs/**",
+      "./node_modules/pngjs/**",
     ],
   },
   images: {
