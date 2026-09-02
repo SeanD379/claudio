@@ -9,8 +9,14 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "framer-motion"],
   },
-  // NeteaseCloudMusicApi 不打包，运行时动态导入
+  // NeteaseCloudMusicApi 保持外部模块（其 main.js 使用动态 require，无法被打包）
   serverExternalPackages: ["NeteaseCloudMusicApi"],
+  // 强制将 NCM 的间接依赖包含进部署追踪产物：
+  // 我们代码不直接 require xml2js，Netlify 的 nft 追踪会把它剪掉，
+  // 导致线上函数运行时 Cannot find module 'xml2js'。
+  outputFileTracingIncludes: {
+    "/api/netease/**": ["./node_modules/xml2js/**"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https" as const, hostname: "p1.music.126.net" },
