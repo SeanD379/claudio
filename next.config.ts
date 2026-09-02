@@ -15,7 +15,11 @@ const nextConfig: NextConfig = {
   // 我们代码不直接 require xml2js，Netlify 的 nft 追踪会把它剪掉，
   // 导致线上函数运行时 Cannot find module 'xml2js'。
   outputFileTracingIncludes: {
-    "/api/netease/**": ["./node_modules/xml2js/**"],
+    "/api/netease/**": [
+      "./node_modules/xml2js/**",
+      "./node_modules/xmlbuilder/**",
+      "./node_modules/sax/**",
+    ],
   },
   images: {
     remotePatterns: [
