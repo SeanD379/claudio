@@ -8,12 +8,50 @@ import { resolve } from "path";
 const COOKIE_FILE = resolve(process.cwd(), ".netease-cookie.json");
 
 /**
- * 动态加载 NeteaseCloudMusicApi（避免顶层 import 在打包异常时导致函数整体崩溃），
- * 加载失败时抛出可被上层捕获并返回 JSON 详情的错误。
+ * 按需加载 NeteaseCloudMusicApi 的具体模块。
+ * 不加载 main.js：它会动态 require 包内全部 300+ 模块（含云盘、上传等），
+ * 其传递依赖在 Netlify 上不完整，会导致 Cannot find module 'xxx'。
+ * 这 5 个登录相关模块只依赖 qrcode 与包内 util（已验证）。
  */
 async function loadNcm() {
   try {
-    return await import("NeteaseCloudMusicApi");
+    const [fsMod, osMod, pathMod] = await Promise.all([
+      import("fs"),
+      import("os"),
+      import("path"),
+    ]);
+    // request.js 加载时会同步读取 tmpdir 下的 anonymous_token，
+    // Netlify 全新环境中不存在该文件，需先创建
+    const tokenPath = pathMod.default.resolve(osMod.tmpdir(), "./anonymous_token");
+    if (!fsMod.default.existsSync(tokenPath)) {
+      fsMod.default.writeFileSync(tokenPath, "", "utf-8");
+    }
+
+    const [qrKey, qrCreate, qrCheck, account, logoutMod, requestMod] =
+      await Promise.all([
+        import("NeteaseCloudMusicApi/module/login_qr_key"),
+        import("NeteaseCloudMusicApi/module/login_qr_create"),
+        import("NeteaseCloudMusicApi/module/login_qr_check"),
+        import("NeteaseCloudMusicApi/module/user_account"),
+        import("NeteaseCloudMusicApi/module/logout"),
+        import("NeteaseCloudMusicApi/util/request"),
+      ]);
+    // 模块函数签名为 (query, request)，request 由包的 main.js 注入；
+    // 直接调用时需自行提供（与 main.js 的行为一致）
+    const request = (requestMod.default ?? requestMod) as (
+      ...args: unknown[]
+    ) => Promise<{ body: unknown }>;
+    const wrap =
+      (fn: (...args: unknown[]) => Promise<{ body: unknown }>) =>
+      (query: Record<string, unknown>) =>
+        fn(query, request);
+    return {
+      login_qr_key: wrap(qrKey.default ?? qrKey),
+      login_qr_create: wrap(qrCreate.default ?? qrCreate),
+      login_qr_check: wrap(qrCheck.default ?? qrCheck),
+      user_account: wrap(account.default ?? account),
+      ncmLogout: wrap(logoutMod.default ?? logoutMod),
+    };
   } catch (e) {
     throw new Error(
       `NeteaseCloudMusicApi module load failed: ${e instanceof Error ? e.message : String(e)}`
@@ -254,7 +292,7 @@ export async function logout(): Promise<void> {
   const cookie = await getValidCookie();
   if (cookie) {
     try {
-      const { logout: ncmLogout } = await loadNcm();
+      const { ncmLogout } = await loadNcm();
       await ncmLogout({ cookie });
     } catch (e) {
       const errBody = (e as { body?: unknown }).body;
