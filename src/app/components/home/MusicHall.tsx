@@ -20,7 +20,7 @@ interface MusicHallProps {
 export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoggedIn } = useAuthContext();
+  const { isLoggedIn, checkAuth } = useAuthContext();
   const { playlists } = usePlaylists();
   const { playSong, playHistory, currentSong, sleepTimerEndAt, setSleepTimer } = usePlayer();
   const { favorites, fetchFavorites } = useFavorites();
@@ -222,8 +222,9 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
   };
 
   // 登录成功后自动加载歌单
-  const handleLoginSuccess = () => {
-    setTimeout(() => handleFetchNetease(), 500);
+  const handleLoginSuccess = async () => {
+    await checkAuth();
+    await handleFetchNetease();
   };
 
   // 通过链接导入

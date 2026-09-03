@@ -8,6 +8,7 @@ import {
 } from "@/hooks/usePlaylists";
 import { useTranslation } from "@/hooks/useTranslation";
 import NeteaseQrLogin from "./NeteaseQrLogin";
+import { useAuthContext } from "@/app/components/auth/AuthProvider";
 
 interface Props {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export default function ImportPlaylistModal({ isOpen, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const { fetchImportable, fetchNeteasePlaylists, importFromExport, importFromNetease } = usePlaylists();
+  const { checkAuth } = useAuthContext();
   const { t } = useTranslation();
 
   const [neteaseUrl, setNeteaseUrl] = useState("");
@@ -66,20 +68,19 @@ export default function ImportPlaylistModal({ isOpen, onClose }: Props) {
 
   if (!isOpen) return null;
 
-  const handleLoginSuccess = () => {
-    setTimeout(() => {
-      setFetching(true);
-      fetch("/api/user/playlists/netease-mine")
-        .then(async (res) => {
-          if (res.ok) {
-            const data = await res.json();
-            setNeteasePlaylists(data.playlists || []);
-            setNeedsLogin(false);
-          }
-        })
-        .catch(() => {})
-        .finally(() => { setFetching(false); });
-    }, 500);
+  const handleLoginSuccess = async () => {
+    await checkAuth();
+    setFetching(true);
+    fetch("/api/user/playlists/netease-mine")
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          setNeteasePlaylists(data.playlists || []);
+          setNeedsLogin(false);
+        }
+      })
+      .catch(() => {})
+      .finally(() => { setFetching(false); });
   };
 
   const toggleSelect = (id: number) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { QRCodeLoginModal } from "./QRCodeLoginModal";
 import { LoginBanner } from "./LoginBanner";
@@ -15,6 +15,7 @@ interface AuthContextType {
     userId: number | null;
   } | null;
   showLoginModal: () => void;
+  showLoginPrompt: () => void;
   hideLoginModal: () => void;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
@@ -37,9 +38,35 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const auth = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPromptVisible, setIsPromptVisible] = useState(false);
+  const promptTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showLoginModal = () => setIsModalOpen(true);
-  const hideLoginModal = () => setIsModalOpen(false);
+  const hideLoginPrompt = useCallback(() => {
+    setIsPromptVisible(false);
+    if (promptTimer.current) {
+      clearTimeout(promptTimer.current);
+      promptTimer.current = null;
+    }
+  }, []);
+
+  const showLoginPrompt = useCallback(() => {
+    setIsPromptVisible(true);
+    if (promptTimer.current) clearTimeout(promptTimer.current);
+    promptTimer.current = setTimeout(hideLoginPrompt, 5000);
+  }, [hideLoginPrompt]);
+
+  const showLoginModal = useCallback(() => {
+    setIsModalOpen(true);
+    showLoginPrompt();
+  }, [showLoginPrompt]);
+  const hideLoginModal = useCallback(() => setIsModalOpen(false), []);
+
+  useEffect(() => () => hideLoginPrompt(), [hideLoginPrompt]);
+
+  useEffect(() => {
+    if (!auth.isLoading && !auth.isLoggedIn) showLoginPrompt();
+    if (auth.isLoggedIn) hideLoginPrompt();
+  }, [auth.isLoading, auth.isLoggedIn, hideLoginPrompt, showLoginPrompt]);
 
   // 未登录时阻止播放
   useEffect(() => {
@@ -70,6 +97,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       value={{
         ...auth,
         showLoginModal,
+        showLoginPrompt,
         hideLoginModal,
       }}
     >
@@ -87,7 +115,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       />
 
       {/* 未登录时显示提醒横幅 */}
-      {!auth.isLoading && !auth.isLoggedIn && (
+      {!auth.isLoading && !auth.isLoggedIn && isPromptVisible && (
         <LoginBanner onLoginClick={showLoginModal} position="top" />
       )}
     </AuthContext.Provider>
