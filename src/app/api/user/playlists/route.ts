@@ -208,51 +208,56 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const playlist = await prisma.playlist.create({
-        data: {
-          userId,
-          neteaseId: neteasePlaylistId,
-          name: detail.playlist.name || name,
-          description: detail.playlist.description,
-          coverUrl: detail.playlist.coverUrl || coverUrl,
-        },
-      });
-
-      // 批量导入歌曲
-      for (const song of detail.songs) {
-        const dbSong = await prisma.song.upsert({
-          where: { neteaseId: song.neteaseId },
-          update: {
-            title: song.title,
-            artist: song.artist,
-            album: song.album,
-            coverUrl: song.coverUrl,
-            duration: song.duration,
+      // 批量导入，避免 300+ 首歌逐首写入导致 Netlify 函数超时。
+      // 同一歌单内的重复歌曲也只建立一条关联。
+      const uniqueSongs = Array.from(
+        new Map(detail.songs.map((song) => [song.neteaseId, song])).values()
+      );
+      const playlist = await prisma.$transaction(async (tx) => {
+        const createdPlaylist = await tx.playlist.create({
+          data: {
+            userId,
+            neteaseId: neteasePlaylistId,
+            name: detail.playlist.name || name,
+            description: detail.playlist.description,
+            coverUrl: detail.playlist.coverUrl || coverUrl,
           },
-          create: {
+        });
+
+        await tx.song.createMany({
+          data: uniqueSongs.map((song) => ({
             neteaseId: song.neteaseId,
             title: song.title,
             artist: song.artist,
             album: song.album,
             coverUrl: song.coverUrl,
             duration: song.duration,
-          },
+          })),
+          skipDuplicates: true,
         });
 
-        await prisma.playlistSong.create({
-          data: {
-            playlistId: playlist.id,
-            songId: dbSong.id,
-          },
+        const songs = await tx.song.findMany({
+          where: { neteaseId: { in: uniqueSongs.map((song) => song.neteaseId) } },
+          select: { id: true },
         });
-      }
+
+        await tx.playlistSong.createMany({
+          data: songs.map((song) => ({
+            playlistId: createdPlaylist.id,
+            songId: song.id,
+          })),
+          skipDuplicates: true,
+        });
+
+        return createdPlaylist;
+      });
 
       return NextResponse.json({
         success: true,
         playlist: {
           id: playlist.id,
           name: playlist.name,
-          trackCount: detail.songs.length,
+          trackCount: uniqueSongs.length,
         },
       });
     }
