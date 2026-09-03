@@ -262,10 +262,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Import playlist error:", error);
     return NextResponse.json(
-      {
-        error: "Failed to import playlist",
-        detail: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to import playlist" },
       { status: 500 }
     );
   }
