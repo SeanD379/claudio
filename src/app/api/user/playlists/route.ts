@@ -213,43 +213,39 @@ export async function POST(request: NextRequest) {
       const uniqueSongs = Array.from(
         new Map(detail.songs.map((song) => [song.neteaseId, song])).values()
       );
-      const playlist = await prisma.$transaction(async (tx) => {
-        const createdPlaylist = await tx.playlist.create({
-          data: {
-            userId,
-            neteaseId: neteasePlaylistId,
-            name: detail.playlist.name || name,
-            description: detail.playlist.description,
-            coverUrl: detail.playlist.coverUrl || coverUrl,
-          },
-        });
+      const playlist = await prisma.playlist.create({
+        data: {
+          userId,
+          neteaseId: neteasePlaylistId,
+          name: detail.playlist.name || name,
+          description: detail.playlist.description,
+          coverUrl: detail.playlist.coverUrl || coverUrl,
+        },
+      });
 
-        await tx.song.createMany({
-          data: uniqueSongs.map((song) => ({
-            neteaseId: song.neteaseId,
-            title: song.title,
-            artist: song.artist,
-            album: song.album,
-            coverUrl: song.coverUrl,
-            duration: song.duration,
-          })),
-          skipDuplicates: true,
-        });
+      await prisma.song.createMany({
+        data: uniqueSongs.map((song) => ({
+          neteaseId: song.neteaseId,
+          title: song.title,
+          artist: song.artist,
+          album: song.album,
+          coverUrl: song.coverUrl,
+          duration: song.duration,
+        })),
+        skipDuplicates: true,
+      });
 
-        const songs = await tx.song.findMany({
-          where: { neteaseId: { in: uniqueSongs.map((song) => song.neteaseId) } },
-          select: { id: true },
-        });
+      const songs = await prisma.song.findMany({
+        where: { neteaseId: { in: uniqueSongs.map((song) => song.neteaseId) } },
+        select: { id: true },
+      });
 
-        await tx.playlistSong.createMany({
-          data: songs.map((song) => ({
-            playlistId: createdPlaylist.id,
-            songId: song.id,
-          })),
-          skipDuplicates: true,
-        });
-
-        return createdPlaylist;
+      await prisma.playlistSong.createMany({
+        data: songs.map((song) => ({
+          playlistId: playlist.id,
+          songId: song.id,
+        })),
+        skipDuplicates: true,
       });
 
       return NextResponse.json({
