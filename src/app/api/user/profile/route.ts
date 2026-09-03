@@ -4,19 +4,30 @@ import { getUserProfile, hasCookie } from "@/app/lib/ncm-auth";
 
 const userId = "default-user";
 
+// 服务器端存储不可用时的登录态兜底：浏览器会话 Cookie
+function getSessionFallback(request: NextRequest): string | undefined {
+  return request.cookies.get("nc_netease_session")?.value;
+}
+
 // 获取用户资料
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // 从数据库获取本地用户信息
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const fallbackCookie = getSessionFallback(request);
+    // 从数据库获取本地用户信息（数据库不可达时不影响网易云资料返回）
+    let user: { nickname: string | null; customAvatarUrl: string | null } | null = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+    } catch (dbErr) {
+      console.warn("[Profile] 数据库不可达，跳过本地用户信息:", dbErr);
+    }
 
     // 尝试获取网易云用户信息
     let neteaseProfile = null;
-    if (await hasCookie()) {
+    if (await hasCookie(fallbackCookie)) {
       try {
-        neteaseProfile = await getUserProfile();
+        neteaseProfile = await getUserProfile(fallbackCookie);
       } catch (err) {
         console.log("获取网易云资料失败:", err);
       }

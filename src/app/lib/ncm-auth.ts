@@ -146,14 +146,38 @@ async function deleteFromDb(): Promise<void> {
 
 export async function saveCookie(data: CookieData): Promise<void> {
   cached = data;
-  if (isNetlify()) await saveToDb(data);
-  else saveToFile(data);
+  if (isNetlify()) {
+    try {
+      await saveToDb(data);
+    } catch (e) {
+      // 数据库不可达时降级为实例内存缓存，登录态在实例存续期内仍然有效；
+      // 浏览器 Cookie 兜底由 qrcode 路由负责下发
+      console.warn("[Auth] 数据库保存 Cookie 失败，降级为内存缓存:", e);
+      (globalThis as { __ncmCookieCache?: CookieData }).__ncmCookieCache = data;
+    }
+  } else {
+    saveToFile(data);
+  }
 }
 
 export async function loadCookie(): Promise<CookieData | null> {
   if (cached) return cached;
-  if (isNetlify()) cached = await loadFromDb();
-  else cached = loadFromFile();
+  // 内存兜底缓存（数据库不可用时的降级存储）
+  const mem = (globalThis as { __ncmCookieCache?: CookieData }).__ncmCookieCache;
+  if (mem) {
+    cached = mem;
+    return cached;
+  }
+  if (isNetlify()) {
+    try {
+      cached = await loadFromDb();
+    } catch (e) {
+      console.warn("[Auth] 数据库读取 Cookie 失败:", e);
+      cached = null;
+    }
+  } else {
+    cached = loadFromFile();
+  }
   return cached;
 }
 
@@ -163,13 +187,13 @@ export async function deleteCookie(): Promise<void> {
   else deleteFile();
 }
 
-export async function getValidCookie(): Promise<string | null> {
+export async function getValidCookie(fallback?: string): Promise<string | null> {
   const data = await loadCookie();
-  return data?.cookie || null;
+  return data?.cookie || fallback || null;
 }
 
-export async function hasCookie(): Promise<boolean> {
-  return !!(await getValidCookie());
+export async function hasCookie(fallback?: string): Promise<boolean> {
+  return !!(await getValidCookie(fallback));
 }
 
 // ============ HTTP 调用（已废弃） ============
@@ -220,6 +244,8 @@ export async function generateQrCode(): Promise<{ uniKey: string; qrImg: string 
 export async function checkQrStatus(uniKey: string): Promise<{
   status: number;
   message?: string;
+  profile?: { userId: number; nickname: string; avatarUrl: string } | null;
+  cookie?: string;
 }> {
   try {
     const { login_qr_check } = await loadNcm();
@@ -227,16 +253,23 @@ export async function checkQrStatus(uniKey: string): Promise<{
     const body = res.body as { code?: number; message?: string; cookie?: string };
     const code = body?.code || 800;
 
-    // 803 = 登录成功，保存 Cookie
+    // 803 = 登录成功，保存 Cookie。
+    // 注意：保存失败绝不能影响登录成功的结果，这里单独隔离错误
     if (code === 803 && body.cookie) {
-      const profile = await fetchProfile(body.cookie);
-      await saveCookie({
-        cookie: body.cookie,
-        userId: profile?.userId || 0,
-        nickname: profile?.nickname || "",
-        avatarUrl: profile?.avatarUrl || "",
-        savedAt: Date.now(),
-      });
+      let profile: { userId: number; nickname: string; avatarUrl: string } | null = null;
+      try {
+        profile = await fetchProfile(body.cookie);
+        await saveCookie({
+          cookie: body.cookie,
+          userId: profile?.userId || 0,
+          nickname: profile?.nickname || "",
+          avatarUrl: profile?.avatarUrl || "",
+          savedAt: Date.now(),
+        });
+      } catch (saveErr) {
+        console.error("[Auth] 登录成功但保存 Cookie 失败（登录结果不受影响）:", saveErr);
+      }
+      return { status: 803, profile, cookie: body.cookie };
     }
 
     return { status: code, message: body?.message };
@@ -271,12 +304,12 @@ async function fetchProfile(cookie: string): Promise<{
   }
 }
 
-export async function getUserProfile(): Promise<{
+export async function getUserProfile(fallback?: string): Promise<{
   nickname: string;
   avatarUrl: string;
   userId: number;
 } | null> {
-  const cookie = await getValidCookie();
+  const cookie = await getValidCookie(fallback);
   if (!cookie) return null;
   const profile = await fetchProfile(cookie);
   if (!profile) {

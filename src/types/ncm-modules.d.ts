@@ -23,3 +23,7 @@ declare module "NeteaseCloudMusicApi/util/request" {
   const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
   export default fn;
 }
+declare module "NeteaseCloudMusicApi/module/user_playlist" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}

@@ -31,7 +31,23 @@ export async function GET(request: NextRequest) {
       }
 
       const result = await checkQrStatus(key);
-      return NextResponse.json({ code: result.status });
+      const response = NextResponse.json({
+        code: result.status,
+        profile: result.profile ?? null,
+      });
+
+      // 登录成功时把网易云 Cookie 下发为浏览器会话 Cookie，
+      // 作为服务器端存储（数据库）不可用时的登录态兜底
+      if (result.status === 803 && result.cookie) {
+        response.cookies.set("nc_netease_session", result.cookie, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        });
+      }
+      return response;
     }
 
     return NextResponse.json(
