@@ -7,7 +7,7 @@ const userId = "default-user";
 // 同步歌单（与网易云对比差异）
 export async function POST(request: NextRequest) {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  if (!(await isUserLoggedIn())) {
     return getUnauthorizedResponse();
   }
 

@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  if (!(await isUserLoggedIn())) {
     return getUnauthorizedResponse();
   }
 

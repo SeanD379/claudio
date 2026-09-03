@@ -7,9 +7,10 @@ import { isUserLoggedIn, getUnauthorizedResponse } from "@/app/lib/auth";
 const userId = "default-user";
 
 // 获取用户歌单列表
-export async function GET() {
+export async function GET(request: NextRequest) {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  const fallbackCookie = request.cookies.get("nc_netease_session")?.value;
+  if (!(await isUserLoggedIn(fallbackCookie))) {
     return getUnauthorizedResponse();
   }
 
@@ -45,7 +46,8 @@ export async function GET() {
 // 导入歌单
 export async function POST(request: NextRequest) {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  const fallbackCookie = request.cookies.get("nc_netease_session")?.value;
+  if (!(await isUserLoggedIn(fallbackCookie))) {
     return getUnauthorizedResponse();
   }
 
@@ -197,7 +199,7 @@ export async function POST(request: NextRequest) {
 
       // 调用网易云 API 获取歌单详情
       const { getPlaylistDetail } = await import("@/app/lib/music");
-      const detail = await getPlaylistDetail(neteasePlaylistId);
+      const detail = await getPlaylistDetail(neteasePlaylistId, fallbackCookie);
 
       if (!detail) {
         return NextResponse.json(
@@ -268,7 +270,8 @@ export async function POST(request: NextRequest) {
 // 删除歌单
 export async function DELETE(request: NextRequest) {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  const fallbackCookie = request.cookies.get("nc_netease_session")?.value;
+  if (!(await isUserLoggedIn(fallbackCookie))) {
     return getUnauthorizedResponse();
   }
 
@@ -311,7 +314,7 @@ export async function DELETE(request: NextRequest) {
 // 更新歌单封面
 export async function PATCH() {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  if (!(await isUserLoggedIn())) {
     return getUnauthorizedResponse();
   }
 

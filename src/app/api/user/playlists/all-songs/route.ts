@@ -6,7 +6,7 @@ const userId = "default-user";
 
 export async function GET() {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  if (!(await isUserLoggedIn())) {
     return getUnauthorizedResponse();
   }
 

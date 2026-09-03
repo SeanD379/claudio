@@ -4,8 +4,8 @@ import { hasCookie } from "./ncm-auth";
  * 检查用户是否已登录网易云音乐
  * 通过检查 Cookie 是否存在
  */
-export async function isUserLoggedIn(): Promise<boolean> {
-  return hasCookie();
+export async function isUserLoggedIn(fallback?: string): Promise<boolean> {
+  return hasCookie(fallback);
 }
 
 /**

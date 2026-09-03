@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
       "./node_modules/qrcode/**",
       "./node_modules/dijkstrajs/**",
       "./node_modules/pngjs/**",
+      "./node_modules/NeteaseCloudMusicApi/module/playlist_detail.js",
     ],
   },
   images: {

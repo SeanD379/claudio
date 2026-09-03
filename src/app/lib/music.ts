@@ -87,9 +87,10 @@ export async function getSongDetails(
  * 获取歌单详情 + 歌曲列表
  */
 export async function getPlaylistDetail(
-  playlistId: string
+  playlistId: string,
+  fallbackCookie?: string
 ): Promise<{ playlist: Playlist; songs: Song[] } | null> {
-  return ncmGetPlaylistDetail(playlistId);
+  return ncmGetPlaylistDetail(playlistId, fallbackCookie);
 }
 
 /**

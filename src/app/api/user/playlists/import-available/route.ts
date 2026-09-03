@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/db";
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -7,9 +7,10 @@ import { isUserLoggedIn, getUnauthorizedResponse } from "@/app/lib/auth";
 const userId = "default-user";
 
 // 获取可导入的歌单列表（从导出文件读取）
-export async function GET() {
+export async function GET(request: NextRequest) {
   // 检查登录状态
-  if (!isUserLoggedIn()) {
+  const fallbackCookie = request.cookies.get("nc_netease_session")?.value;
+  if (!(await isUserLoggedIn(fallbackCookie))) {
     return getUnauthorizedResponse();
   }
 

@@ -196,8 +196,34 @@ export async function getSongDetails(songIds: string[]): Promise<Song[]> {
   }
 }
 
-export async function getPlaylistDetail(playlistId: string): Promise<{ playlist: Playlist; songs: Song[] } | null> {
+export async function getPlaylistDetail(playlistId: string, fallbackCookie?: string): Promise<{ playlist: Playlist; songs: Song[] } | null> {
   try {
+    if (isNetlify()) {
+      // Netlify cannot reliably bundle the NCM main module and its optional dependencies.
+      // Load only the playlist detail module, as the QR and user-playlist routes do.
+      const [playlistDetailMod, requestMod] = await Promise.all([
+        import("NeteaseCloudMusicApi/module/playlist_detail"),
+        import("NeteaseCloudMusicApi/util/request"),
+      ]);
+      const playlistDetail = (playlistDetailMod.default ?? playlistDetailMod) as (
+        ...args: unknown[]
+      ) => Promise<{ body: unknown }>;
+      const request = (requestMod.default ?? requestMod) as (
+        ...args: unknown[]
+      ) => Promise<{ body: unknown }>;
+      const cookie = await getValidCookie(fallbackCookie);
+      const result = await playlistDetail(
+        cookie ? { id: playlistId, cookie } : { id: playlistId },
+        request
+      );
+      const data = result.body as { playlist?: NcmApiPlaylist };
+      if (!data.playlist) return null;
+      return {
+        playlist: mapPlaylist(data.playlist),
+        songs: (data.playlist.tracks || []).map(mapSong),
+      };
+    }
+
     const data = await ncmCall<{ playlist?: NcmApiPlaylist }>("/playlist/detail", { id: playlistId });
     if (!data.playlist) return null;
     return {
