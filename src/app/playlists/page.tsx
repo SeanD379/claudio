@@ -1,5 +1,8 @@
 "use client";
 
+import { CoverImage } from "@/app/components/CoverImage";
+
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -211,7 +214,7 @@ export default function PlaylistsPage() {
                         }}
                       >
                         {pl.coverUrl ? (
-                          <img
+                          <CoverImage size={240} priority={i < 4}
                             src={pl.coverUrl}
                             alt={pl.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -329,7 +332,7 @@ function CollectionCard({
           {covers.map((cover, i) => (
             <div key={i} className="overflow-hidden">
               {cover ? (
-                <img
+                <CoverImage size={120} priority={i === 0}
                   src={cover}
                   alt=""
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"

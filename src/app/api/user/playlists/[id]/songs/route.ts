@@ -10,7 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   // 检查登录状态
-  if (!(await isUserLoggedIn())) {
+  const fallbackCookie = request.cookies.get("nc_netease_session")?.value;
+  if (!(await isUserLoggedIn(fallbackCookie))) {
     return getUnauthorizedResponse();
   }
 

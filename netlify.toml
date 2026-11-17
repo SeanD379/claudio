@@ -1,5 +1,5 @@
 [build]
-  command = "npx prisma db push --accept-data-loss && npx prisma generate && npm run build"
+  command = "npm run build:netlify"
   publish = ".next"
 
 [[plugins]]

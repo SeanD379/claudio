@@ -1,5 +1,8 @@
 "use client";
 
+import { CoverImage } from "@/app/components/CoverImage";
+
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer, Song } from "@/hooks/usePlayer";
@@ -80,7 +83,7 @@ function SongCard({
         }}
       >
         {song.coverUrl ? (
-          <img
+          <CoverImage size={48} priority={isActive} songId={song.neteaseId}
             src={song.coverUrl}
             alt={song.title}
             className="w-full h-full object-cover"

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/db";
 import { isUserLoggedIn, getUnauthorizedResponse } from "@/app/lib/auth";
+import { NcmPlaylistError } from "@/app/lib/ncm-playlist-error";
 
 const userId = "default-user";
 
 // 同步歌单（与网易云对比差异）
 export async function POST(request: NextRequest) {
   // 检查登录状态
-  if (!(await isUserLoggedIn())) {
+  const fallbackCookie = request.cookies.get("nc_netease_session")?.value;
+  if (!(await isUserLoggedIn(fallbackCookie))) {
     return getUnauthorizedResponse();
   }
 
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // 从网易云 API 获取最新歌单详情
     const { getPlaylistDetail } = await import("@/app/lib/music");
-    const detail = await getPlaylistDetail(playlist.neteaseId);
+    const detail = await getPlaylistDetail(playlist.neteaseId, fallbackCookie);
 
     if (!detail) {
       return NextResponse.json(
@@ -115,6 +117,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Sync playlist error:", error);
+    if (error instanceof NcmPlaylistError) {
+      return NextResponse.json(
+        { error: error.message, code: "NCM_PLAYLIST_ERROR", upstreamCode: error.upstreamCode },
+        { status: error.status, headers: { "Cache-Control": "private, no-store" } }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to sync playlist" },
       { status: 500 }

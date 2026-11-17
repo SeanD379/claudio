@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { NcmPlaylistError } from "@/app/lib/ncm-playlist-error";
 import {
   getPlaylistDetail,
   getPersonalizedPlaylists,
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // 获取歌单详情
     if (playlistId) {
-      const result = await getPlaylistDetail(playlistId);
+      const result = await getPlaylistDetail(playlistId, request.cookies.get("nc_netease_session")?.value);
       if (!result) {
         return NextResponse.json(
           { error: "Playlist not found" },
@@ -42,6 +43,12 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("Get playlist error:", error);
+    if (error instanceof NcmPlaylistError) {
+      return NextResponse.json(
+        { error: error.message, code: "NCM_PLAYLIST_ERROR", upstreamCode: error.upstreamCode },
+        { status: error.status, headers: { "Cache-Control": "private, no-store" } }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to get playlist" },
       { status: 500 }

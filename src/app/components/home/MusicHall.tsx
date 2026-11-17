@@ -1,5 +1,8 @@
 "use client";
 
+import { CoverImage } from "@/app/components/CoverImage";
+
+
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -11,6 +14,7 @@ import { useAuthContext } from "@/app/components/auth/AuthProvider";
 import { Play, ArrowRight, Disc3, Radio, Clock, Shuffle, ListMusic, ArrowLeft, Music, Heart, ChevronRight, RefreshCw, Trash2, Loader2, Link, Check, Settings, Sparkles, Info, Calendar, Search, Timer, Plus, ListChecks, Download, X } from "lucide-react";
 import NeteaseQrLogin from "@/app/components/settings/NeteaseQrLogin";
 import UserProfileCard from "@/app/components/settings/UserProfileCard";
+import { importSelectedPlaylists } from "@/app/lib/playlist-import";
 
 interface MusicHallProps {
   onEnterPlayer: () => void;
@@ -201,6 +205,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
   // 获取我的网易云歌单
   const handleFetchNetease = async () => {
     setFetchingNetease(true);
+    setImportError("");
     setNeedsLogin(false);
     try {
       const res = await fetch("/api/user/playlists/netease-mine");
@@ -213,9 +218,13 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
         const data = await res.json();
         setNeteasePlaylists(data.playlists || []);
         setNeedsLogin(false);
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || "获取歌单失败，请稍后重试");
       }
-    } catch {
+    } catch (error) {
       setNeteasePlaylists([]);
+      setImportError(error instanceof Error ? error.message : "获取歌单失败，请稍后重试");
     } finally {
       setFetchingNetease(false);
     }
@@ -259,30 +268,16 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
     if (selectedNetease.size === 0) return;
     setImporting(true);
     setImportError("");
-    let imported = 0;
-    let skipped = 0;
-    let failed = 0;
-    for (const id of selectedNetease) {
-      try {
-        await importFromNetease(id.toString());
-        imported++;
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "";
-        if (msg.includes("already imported") || msg.includes("409")) {
-          skipped++;
-        } else {
-          failed++;
-        }
-      }
-    }
-    setSelectedNetease(new Set());
+    const result = await importSelectedPlaylists(selectedNetease, importFromNetease);
+    setSelectedNetease(new Set(result.failedIds));
+    setNeteasePlaylists((previous) => previous.map((playlist) =>
+      result.completedIds.includes(playlist.playlistId) ? { ...playlist, imported: true } : playlist
+    ));
+    setImportError(result.error);
     setImporting(false);
-    if (imported > 0) {
-      setLibraryView("imported");
+    if (result.importedCount > 0) {
+      if (result.failedIds.length === 0) setLibraryView("imported");
       fetchPlaylists();
-    }
-    if (failed > 0 && imported === 0) {
-      setImportError("导入失败，请重试");
     }
   };
 
@@ -745,7 +740,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                           )}
                         </button>
                         {importError && (
-                          <p className="text-sm text-center" style={{ color: "#f43f5e" }}>{importError}</p>
+                          <p className="text-sm text-center" role="alert" style={{ color: "#f43f5e" }}>{importError}</p>
                         )}
                       </div>
 
@@ -776,7 +771,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                               )}
                             </div>
                             {pl.coverUrl && (
-                              <img src={pl.coverUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                              <CoverImage size={40} src={pl.coverUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate" style={{ color: "#ffffff" }}>{pl.name}</p>
@@ -795,6 +790,11 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                         </p>
                       )}
                     </>
+                  ) : importError ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm mb-4" role="alert" style={{ color: "#f43f5e" }}>{importError}</p>
+                      <button type="button" onClick={handleFetchNetease} className="text-sm text-white">重试</button>
+                    </div>
                   ) : needsLogin ? (
                     <div className="py-6">
                       <p className="text-sm text-center mb-4" style={{ color: "#b3b3b3" }}>
@@ -849,7 +849,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                     onClick={() => { playSong(song); onEnterPlayer(); }}
                   >
                     <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                      <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
+                      <CoverImage size={40} priority={i < 6} songId={song.neteaseId} src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate" style={{ color: "#ffffff" }}>{song.title}</p>
@@ -905,7 +905,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                   >
                     <div className="aspect-square rounded-lg overflow-hidden relative mb-2" style={{ background: "#282828" }}>
                       {pl.coverUrl ? (
-                        <img src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <CoverImage size={220} priority={i < 5} src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center" style={{ background: "#333" }}>
                           <Music className="w-5 h-5 opacity-40" style={{ color: "#b3b3b3" }} />
@@ -1010,7 +1010,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                   {likedCovers.map((cover, i) => (
                     <div key={i} className="overflow-hidden">
                       {cover ? (
-                        <img src={cover} alt="" className="w-full h-full object-cover" />
+                        <CoverImage size={48} priority={i === 0} src={cover} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-pink-500/40 to-purple-500/40" />
                       )}
@@ -1042,7 +1042,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                   {playlistCovers.map((cover, i) => (
                     <div key={i} className="overflow-hidden">
                       {cover ? (
-                        <img src={cover} alt="" className="w-full h-full object-cover" />
+                        <CoverImage size={48} priority={i === 0} src={cover} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-green-500/40 to-blue-500/40" />
                       )}
@@ -1085,7 +1085,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                 >
                   <div className="aspect-square rounded-2xl overflow-hidden relative mb-2 shadow-[0_18px_45px_rgba(0,0,0,0.25)]" style={{ background: "#222332" }}>
                     {pl.coverUrl ? (
-                      <img src={pl.coverUrl} alt={pl.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <CoverImage size={220} src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center" style={{ background: "#333" }}>
                         <Music className="w-5 h-5 opacity-40" style={{ color: "#b3b3b3" }} />
@@ -1216,7 +1216,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
               >
                 <div className="relative mb-3 aspect-square overflow-hidden rounded-xl" style={{ background: "#282a31" }}>
                   {song.coverUrl ? (
-                    <img src={song.coverUrl} alt={song.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <CoverImage size={160} songId={song.neteaseId} src={song.coverUrl} alt={song.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
                       <Music className="h-8 w-8" style={{ color: "#6c7180" }} />
@@ -1293,7 +1293,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
               <>
                 <div className="w-48 h-48 rounded-xl overflow-hidden mb-6 shadow-2xl" style={{ background: "#282828" }}>
                   {currentSong.coverUrl ? (
-                    <img src={currentSong.coverUrl} alt={currentSong.title} className="w-full h-full object-cover" />
+                    <CoverImage size={192} priority songId={currentSong.neteaseId} src={currentSong.coverUrl} alt={currentSong.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Disc3 className="w-16 h-16" style={{ color: "#1ed760" }} />
@@ -1428,7 +1428,7 @@ export function MusicHall({ onEnterPlayer, onStartPlay }: MusicHallProps) {
                   transition={{ duration: 0.3, delay: 0.5 + index * 0.05 }}
                 >
                   <div className="w-28 h-28 rounded-lg overflow-hidden mb-2 relative">
-                    <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                    <CoverImage size={112} songId={song.neteaseId} src={song.coverUrl} alt={song.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                       <Play className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity fill-current" />
                     </div>

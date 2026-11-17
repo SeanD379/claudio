@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateQrCode, checkQrStatus } from "@/app/lib/ncm-auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,15 +12,15 @@ export async function GET(request: NextRequest) {
       const result = await generateQrCode();
       if (!result) {
         return NextResponse.json(
-          { error: "生成二维码失败" },
-          { status: 500 }
+          { error: "暂时无法连接网易云音乐，请稍后刷新重试" },
+          { status: 502, headers: { "Cache-Control": "private, no-store" } }
         );
       }
 
       return NextResponse.json({
         key: result.uniKey,
         qrImg: result.qrImg, // base64 图片
-      });
+      }, { headers: { "Cache-Control": "private, no-store" } });
     }
 
     if (action === "check") {
@@ -31,17 +33,23 @@ export async function GET(request: NextRequest) {
       }
 
       const result = await checkQrStatus(key);
+      if (result.status >= 500 && result.status < 600) {
+        return NextResponse.json(
+          { code: result.status, error: result.message || "暂时无法连接网易云音乐，正在重试" },
+          { status: 502, headers: { "Cache-Control": "private, no-store" } }
+        );
+      }
       const response = NextResponse.json({
         code: result.status,
         profile: result.profile ?? null,
-      });
+      }, { headers: { "Cache-Control": "private, no-store" } });
 
       // 登录成功时把网易云 Cookie 下发为浏览器会话 Cookie，
       // 作为服务器端存储（数据库）不可用时的登录态兜底
       if (result.status === 803 && result.cookie) {
         response.cookies.set("nc_netease_session", result.cookie, {
           httpOnly: true,
-          secure: true,
+          secure: request.nextUrl.protocol === "https:",
           sameSite: "lax",
           path: "/",
           maxAge: 60 * 60 * 24 * 30,
@@ -58,10 +66,9 @@ export async function GET(request: NextRequest) {
     console.error("[QR Login] 错误:", error);
     return NextResponse.json(
       {
-        error: "二维码登录失败，请稍后重试",
-        detail: error instanceof Error ? error.message : String(error),
+        error: "暂时无法连接网易云音乐，请稍后刷新重试",
       },
-      { status: 500 }
+      { status: 502, headers: { "Cache-Control": "private, no-store" } }
     );
   }
 }

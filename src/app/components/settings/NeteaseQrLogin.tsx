@@ -22,8 +22,15 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
   const [loginResult, setLoginResult] = useState<"success" | "error" | null>(null);
   const [loginMessage, setLoginMessage] = useState("");
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollControllerRef = useRef<AbortController | null>(null);
+  const generationControllerRef = useRef<AbortController | null>(null);
 
   const generateQr = useCallback(async () => {
+    generationControllerRef.current?.abort();
+    pollControllerRef.current?.abort();
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    const controller = new AbortController();
+    generationControllerRef.current = controller;
     setQrLoading(true);
     setQrError("");
     setQrStatus(null);
@@ -33,11 +40,12 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
     setLoginMessage("");
 
     try {
-      const res = await fetch("/api/netease/login/qrcode?action=generate");
+      const res = await fetch("/api/netease/login/qrcode?action=generate", { signal: controller.signal });
       const data = await res.json();
+      if (controller.signal.aborted) return;
 
-      if (!res.ok) {
-        setQrError(data.detail ? `${data.error}（${data.detail}）` : data.error || "生成二维码失败");
+      if (!res.ok || !data.key || !data.qrImg) {
+        setQrError(data.error || "暂时无法生成二维码，请稍后重试");
         return;
       }
 
@@ -45,15 +53,18 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
       setQrImg(data.qrImg);
       setQrStatus(QR_WAITING);
     } catch {
+      if (controller.signal.aborted) return;
       setQrError("生成二维码失败，请重试");
     } finally {
-      setQrLoading(false);
+      if (!controller.signal.aborted) setQrLoading(false);
     }
   }, []);
 
   useEffect(() => {
     generateQr();
     return () => {
+      generationControllerRef.current?.abort();
+      pollControllerRef.current?.abort();
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
       }
@@ -65,15 +76,27 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
       }
+      pollControllerRef.current?.abort();
+      const controller = new AbortController();
+      pollControllerRef.current = controller;
+      let isChecking = false;
 
       pollTimerRef.current = setInterval(async () => {
+        if (isChecking) return;
+        isChecking = true;
         try {
           const res = await fetch(
-            `/api/netease/login/qrcode?action=check&key=${encodeURIComponent(key)}`
+            `/api/netease/login/qrcode?action=check&key=${encodeURIComponent(key)}`,
+            { signal: controller.signal }
           );
           const data = await res.json();
+          if (controller.signal.aborted) return;
 
-          if (!res.ok) return;
+          if (!res.ok) {
+            setLoginMessage(data.error || "连接暂时中断，正在重试");
+            return;
+          }
+          setLoginMessage("");
 
           setQrStatus(data.code);
 
@@ -88,7 +111,9 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
             pollTimerRef.current = null;
           }
         } catch {
-          // 网络错误继续轮询
+          if (!controller.signal.aborted) setLoginMessage("连接暂时中断，正在重试");
+        } finally {
+          isChecking = false;
         }
       }, 2000);
     },
@@ -126,7 +151,7 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
     return (
       <div className="flex flex-col items-center py-6">
         <XCircle className="w-10 h-10 mb-3" style={{ color: "#f43f5e" }} />
-        <p className="text-sm mb-3" style={{ color: "#f43f5e" }}>{qrError}</p>
+        <p className="text-sm mb-3" role="alert" style={{ color: "#f43f5e" }}>{qrError}</p>
         <button
           onClick={generateQr}
           className="px-4 py-2 text-sm rounded-lg font-medium transition-colors"
@@ -148,12 +173,12 @@ export default function NeteaseQrLogin({ onLoginSuccess }: NeteaseQrLoginProps) 
 
         {qrStatus === QR_WAITING && (
           <p className="text-xs" style={{ color: "#b3b3b3" }}>
-            打开网易云音乐 App 扫码登录
+            {loginMessage || "打开网易云音乐 App 扫码登录"}
           </p>
         )}
         {qrStatus === QR_SCANNED && (
           <p className="text-xs font-medium" style={{ color: "#1ed760" }}>
-            已扫码，请在手机上确认
+            {loginMessage || "已扫码，请在手机上确认"}
           </p>
         )}
         {qrStatus === QR_EXPIRED && (

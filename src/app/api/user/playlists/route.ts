@@ -3,6 +3,7 @@ import { prisma } from "@/app/lib/db";
 import { readFile } from "fs/promises";
 import { resolve } from "path";
 import { isUserLoggedIn, getUnauthorizedResponse } from "@/app/lib/auth";
+import { NcmPlaylistError } from "@/app/lib/ncm-playlist-error";
 
 const userId = "default-user";
 
@@ -261,6 +262,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid source" }, { status: 400 });
   } catch (error) {
     console.error("Import playlist error:", error);
+    if (error instanceof NcmPlaylistError) {
+      return NextResponse.json(
+        { error: error.message, code: "NCM_PLAYLIST_ERROR", upstreamCode: error.upstreamCode },
+        { status: error.status, headers: { "Cache-Control": "private, no-store" } }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to import playlist" },
       { status: 500 }

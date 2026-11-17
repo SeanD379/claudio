@@ -1,5 +1,8 @@
 "use client";
 
+import { CoverImage } from "@/app/components/CoverImage";
+
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -113,7 +116,7 @@ export default function DailyRecommendPage() {
               <div className="absolute -right-12 -top-20 h-72 w-72 rounded-full bg-[#1ed760]/15 blur-3xl" />
               <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-end">
                 <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl shadow-2xl sm:h-44 sm:w-44" style={{ background: "linear-gradient(145deg, #1ed760, #143a28)" }}>
-                  {heroCover ? <img src={heroCover} alt="今日推荐封面" className="h-full w-full object-cover" /> : <Music className="absolute inset-0 m-auto h-10 w-10 text-black/50" />}
+                  {heroCover ? <CoverImage size={250} priority src={heroCover} alt="今日推荐封面" className="h-full w-full object-cover" /> : <Music className="absolute inset-0 m-auto h-10 w-10 text-black/50" />}
                   <span className="absolute inset-x-0 bottom-0 bg-black/45 px-3 py-2 text-xs font-semibold tracking-[0.16em] text-white backdrop-blur-sm">DAILY MIX</span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -161,7 +164,7 @@ export default function DailyRecommendPage() {
 
                     <div className="h-12 w-12 overflow-hidden rounded-lg" style={{ background: "#282828" }}>
                       {song.coverUrl ? (
-                        <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
+                        <CoverImage size={48} songId={song.neteaseId} src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Music className="w-4 h-4" style={{ color: "#b3b3b3" }} />

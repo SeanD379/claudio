@@ -3,37 +3,35 @@
 // Netlify 部署：直接调用 NeteaseCloudMusicApi 包
 
 import { getValidCookie } from "./ncm-auth";
+import { prepareNcmRuntime, isNetlifyRuntime as isNetlify } from "./ncm-runtime";
+import { NcmPlaylistError } from "./ncm-playlist-error";
+import { loadingError, type LoadingError } from "./loading-diagnostics";
 
 const NCM_API_BASE = process.env.NCM_API_URL || "http://localhost:3001";
 
-function isNetlify(): boolean {
-  return !!process.env.NETLIFY;
-}
-
 // ============ 通用请求 ============
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let ncmModule: any = null;
+// Avoid the package entrypoint: it loads unrelated upload/cloud modules and their dependencies.
+const ncmModules: Record<string, () => Promise<unknown>> = {
+  "/search": () => import("NeteaseCloudMusicApi/module/search"),
+  "/song/url": () => import("NeteaseCloudMusicApi/module/song_url"),
+  "/song/url/v1": () => import("NeteaseCloudMusicApi/module/song_url_v1"),
+  "/song/detail": () => import("NeteaseCloudMusicApi/module/song_detail"),
+  "/personalized": () => import("NeteaseCloudMusicApi/module/personalized"),
+  "/recommend/songs": () => import("NeteaseCloudMusicApi/module/recommend_songs"),
+  "/lyric": () => import("NeteaseCloudMusicApi/module/lyric"),
+};
 
-async function getNcmModule() {
-  if (!ncmModule) {
-    ncmModule = await import("NeteaseCloudMusicApi");
-  }
-  return ncmModule;
-}
-
-async function ncmCall<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
+async function ncmCall<T>(path: string, params: Record<string, string | number> = {}, signal?: AbortSignal): Promise<T> {
   if (isNetlify()) {
-    // Netlify: 直接调用包
-    const ncm = await getNcmModule();
-    const funcName = path.replace(/^\//, "").replace(/\//g, "_");
-    const func = ncm[funcName] || ncm.default?.[funcName];
-    if (typeof func === "function") {
-      const result = await func(params);
-      // NeteaseCloudMusicApi 返回 { status, body, cookie }，提取 body
-      return (result?.body || result) as T;
-    }
-    throw new Error(`NCM API function not found: ${funcName}`);
+    prepareNcmRuntime();
+    const load = ncmModules[path];
+    if (!load) throw new Error("Unsupported NCM endpoint");
+    const [module, requestModule] = await Promise.all([load(), import("NeteaseCloudMusicApi/util/request")]);
+    const imported = module as { default?: unknown };
+    const call = (imported.default ?? module) as (...args: unknown[]) => Promise<{ body: T }>;
+    const result = await call(params, requestModule.default ?? requestModule);
+    return result.body;
   }
 
   // 本地开发: HTTP 调用
@@ -43,6 +41,7 @@ async function ncmCall<T>(path: string, params: Record<string, string | number> 
   const url = `${NCM_API_BASE}${path}${query ? `?${query}` : ""}`;
 
   const response = await fetch(url, {
+    signal,
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       Referer: "https://music.163.com",
@@ -50,7 +49,7 @@ async function ncmCall<T>(path: string, params: Record<string, string | number> 
   });
 
   if (!response.ok) {
-    throw new Error(`NCM API error: ${response.status}`);
+    throw Object.assign(new Error("NCM API request failed"), { status: response.status });
   }
 
   return response.json() as Promise<T>;
@@ -174,6 +173,60 @@ export async function getSongUrl(songId: string, bitrate: number = 320): Promise
   }
 }
 
+// Keep the legacy nullable helper above; playback uses explicit failure categories.
+export async function resolveSongPlayback(songId: string, options: {
+  cookie?: string;
+  signal?: AbortSignal;
+  onStage: (stage: string, errorCategory?: LoadingError) => void;
+}): Promise<{ audioUrl: string | null; errorCategory?: LoadingError }> {
+  try {
+    if (isNetlify()) prepareNcmRuntime();
+    const cookie = await getValidCookie(options.cookie);
+    options.signal?.throwIfAborted();
+    options.onStage("credentials-ready");
+    options.onStage(isNetlify() ? "transport-sdk" : "transport-http");
+    type UrlResponse = { code?: number; data?: Array<{ url: string | null; code?: number }> };
+    let data = await ncmCall<UrlResponse>("/song/url", {
+      id: songId, br: 320000, ...(cookie ? { cookie } : {}),
+    }, options.signal);
+    options.signal?.throwIfAborted();
+    // The legacy bitrate endpoint can return no URL; v1 uses the equivalent 320 kbps quality level.
+    const legacyCode = data.code === 200 ? data.data?.[0]?.code : data.code;
+    if ((!data.code || data.code === 200) && legacyCode !== 301 && legacyCode !== 401 && !data.data?.[0]?.url) {
+      options.onStage("url-v1-request");
+      try {
+        const fallback = await ncmCall<UrlResponse>("/song/url/v1", {
+          id: songId, level: "exhigh", ...(cookie ? { cookie } : {}),
+        }, options.signal);
+        const fallbackCode = fallback.code === 200 ? fallback.data?.[0]?.code : fallback.code;
+        if (fallback.data?.[0]?.url || fallbackCode === 301 || fallbackCode === 401) data = fallback;
+        else options.onStage("url-v1-unavailable", "unavailable");
+      } catch {
+        // A failed compatibility attempt must not hide the original unavailable result.
+        options.signal?.throwIfAborted();
+        options.onStage("url-v1-failed", "upstream");
+      }
+      options.signal?.throwIfAborted();
+    }
+    options.onStage("upstream-ready");
+    const code = data.code === 200 ? data.data?.[0]?.code : data.code;
+    if (Number.isSafeInteger(code)) options.onStage(`upstream-song-${code}`, data.data?.[0]?.url ? undefined : "unavailable");
+    if (code === 301 || code === 401) return { audioUrl: null, errorCategory: "auth" };
+    if (data.code && data.code !== 200) return { audioUrl: null, errorCategory: "upstream" };
+    const audioUrl = data.data?.[0]?.url || null;
+    return { audioUrl, ...(audioUrl ? {} : { errorCategory: "unavailable" as const }) };
+  } catch (error) {
+    const failure = error as { status?: number; body?: { code?: number }; code?: string } | null;
+    const status = failure?.body?.code ?? failure?.status;
+    const moduleFailure = ["MODULE_NOT_FOUND", "ERR_MODULE_NOT_FOUND"].includes(failure?.code || "");
+    const category = status === 301 || status === 401 ? "auth" : status || moduleFailure ? "upstream" : loadingError(error);
+    const safeCodes = ["MODULE_NOT_FOUND", "ERR_MODULE_NOT_FOUND", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN"];
+    const code = failure?.code && safeCodes.includes(failure.code) ? failure.code : "unknown";
+    options.onStage(`upstream-failed-${code}`, category);
+    return { audioUrl: null, errorCategory: category };
+  }
+}
+
 export async function getSongDetail(songId: string): Promise<Song | null> {
   try {
     const data = await ncmCall<{ songs?: NcmApiSong[] }>("/song/detail", { ids: songId });
@@ -198,40 +251,37 @@ export async function getSongDetails(songIds: string[]): Promise<Song[]> {
 
 export async function getPlaylistDetail(playlistId: string, fallbackCookie?: string): Promise<{ playlist: Playlist; songs: Song[] } | null> {
   try {
-    if (isNetlify()) {
-      // Netlify cannot reliably bundle the NCM main module and its optional dependencies.
-      // Load only the playlist detail module, as the QR and user-playlist routes do.
-      const [playlistDetailMod, requestMod] = await Promise.all([
-        import("NeteaseCloudMusicApi/module/playlist_detail"),
-        import("NeteaseCloudMusicApi/util/request"),
-      ]);
-      const playlistDetail = (playlistDetailMod.default ?? playlistDetailMod) as (
-        ...args: unknown[]
-      ) => Promise<{ body: unknown }>;
-      const request = (requestMod.default ?? requestMod) as (
-        ...args: unknown[]
-      ) => Promise<{ body: unknown }>;
-      const cookie = await getValidCookie(fallbackCookie);
-      const result = await playlistDetail(
-        cookie ? { id: playlistId, cookie } : { id: playlistId },
-        request
-      );
-      const data = result.body as { playlist?: NcmApiPlaylist };
-      if (!data.playlist) return null;
-      return {
-        playlist: mapPlaylist(data.playlist),
-        songs: (data.playlist.tracks || []).map(mapSong),
-      };
-    }
-
-    const data = await ncmCall<{ playlist?: NcmApiPlaylist }>("/playlist/detail", { id: playlistId });
-    if (!data.playlist) return null;
+    // 本地和部署使用同一详情调用链，且不能依赖 QR 请求先初始化过实例。
+    prepareNcmRuntime();
+    const [playlistDetailMod, requestMod] = await Promise.all([
+      import("NeteaseCloudMusicApi/module/playlist_detail"),
+      import("NeteaseCloudMusicApi/util/request"),
+    ]);
+    const playlistDetail = (playlistDetailMod.default ?? playlistDetailMod) as (
+      ...args: unknown[]
+    ) => Promise<{ body: unknown }>;
+    const request = (requestMod.default ?? requestMod) as (
+      ...args: unknown[]
+    ) => Promise<{ body: unknown }>;
+    const cookie = await getValidCookie(fallbackCookie);
+    const result = await playlistDetail(
+      cookie ? { id: playlistId, cookie } : { id: playlistId },
+      request
+    );
+    const data = result.body as { code?: number; playlist?: NcmApiPlaylist };
+    if (data.code === 404) return null;
+    if (data.code !== 200 || !data.playlist) throw new NcmPlaylistError(data.code);
     return {
       playlist: mapPlaylist(data.playlist),
       songs: (data.playlist.tracks || []).map(mapSong),
     };
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof NcmPlaylistError) throw error;
+    const failure = error as { code?: string; body?: { code?: number } } | null;
+    const code = failure?.body?.code;
+    if (code === 404) return null;
+    console.warn("[NCM] Playlist request failed", { code: failure?.code, upstreamCode: code });
+    throw new NcmPlaylistError(code);
   }
 }
 

@@ -1,5 +1,8 @@
 "use client";
 
+import { CoverImage } from "@/app/components/CoverImage";
+
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePlayer, Song } from "@/hooks/usePlayer";
@@ -203,7 +206,7 @@ export default function PlaylistDetailPage() {
     <div className="h-full overflow-y-auto pb-24 transition-[background] duration-700" style={{ background: pageBackground }}>
       <section className="relative isolate overflow-hidden">
         {playlist.coverUrl && (
-          <img src={playlist.coverUrl} alt="" aria-hidden className="absolute inset-0 -z-20 h-full w-full object-cover opacity-20 blur-3xl scale-125" />
+          <CoverImage size={32} priority src={playlist.coverUrl} alt="" aria-hidden className="absolute inset-0 -z-20 h-full w-full object-cover opacity-20 blur-3xl scale-125" />
         )}
         <div className="absolute inset-0 -z-10 transition-[background] duration-700" style={{ background: heroOverlay }} />
         <div className="mx-auto max-w-[1200px] px-5 pb-10 pt-5 sm:px-8 sm:pb-14 sm:pt-7">
@@ -212,7 +215,7 @@ export default function PlaylistDetailPage() {
           </button>
           <div className="grid items-end gap-8 md:grid-cols-[250px_minmax(0,1fr)] md:gap-12">
             {playlist.coverUrl ? (
-              <img src={playlist.coverUrl} alt={`${playlist.name} cover`} className="h-[min(62vw,250px)] w-[min(62vw,250px)] rounded-2xl object-cover shadow-[0_24px_64px_rgba(0,0,0,.45)] ring-1 ring-white/10" />
+              <CoverImage size={250} priority src={playlist.coverUrl} alt={`${playlist.name} cover`} className="h-[min(62vw,250px)] w-[min(62vw,250px)] rounded-2xl object-cover shadow-[0_24px_64px_rgba(0,0,0,.45)] ring-1 ring-white/10" />
             ) : (
               <div className="flex h-[min(62vw,250px)] w-[min(62vw,250px)] items-center justify-center rounded-2xl bg-[#16251d] text-[#5d7768]"><Music className="h-16 w-16" /></div>
             )}
@@ -256,7 +259,7 @@ export default function PlaylistDetailPage() {
                 return (
                   <button key={song.id} onClick={() => handlePlaySong(song)} aria-label={`播放：${song.title} - ${song.artist}`} className={`group grid min-h-[60px] w-full grid-cols-[38px_minmax(0,1fr)_minmax(120px,.42fr)_48px] items-center gap-3 rounded-xl px-1 py-2 text-left transition duration-200 sm:px-3 ${isFeatured ? "bg-[#16251d]" : "hover:bg-[#132019]"}`}>
                     <span className="relative flex h-8 items-center justify-center" style={{ color: isActive ? "#1ed760" : "#5d7768" }}>{isThisLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isThisPlaying ? <span className="flex h-4 w-4 items-end justify-center gap-0.5"><i className="h-2 w-0.5 animate-music-bar-1 bg-[#1ed760]" /><i className="h-3 w-0.5 animate-music-bar-2 bg-[#1ed760]" /><i className="h-1.5 w-0.5 animate-music-bar-3 bg-[#1ed760]" /></span> : isActive ? <Pause className="h-4 w-4" /> : <><span className="text-xs tabular-nums transition-opacity duration-150 group-hover:opacity-0">{index + 1}</span><Play className="absolute h-4 w-4 fill-current opacity-0 transition-opacity duration-150 group-hover:opacity-100" /></>}</span>
-                    <span className="flex min-w-0 items-center gap-3"><span className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-[#16251d]">{song.coverUrl ? <img src={song.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Music className="m-2.5 h-5 w-5" style={{ color: "#5d7768" }} />}</span><span className="min-w-0"><span className="block truncate text-[15px] font-medium" style={{ color: isActive ? "#1ed760" : "#f1f7f2" }}>{song.title}</span><span className="mt-0.5 block truncate text-xs" style={{ color: "#a6b9ac" }}>{song.artist}</span></span></span>
+                    <span className="flex min-w-0 items-center gap-3"><span className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-[#16251d]">{song.coverUrl ? <CoverImage size={40} songId={song.neteaseId} src={song.coverUrl} alt="" className="h-full w-full object-cover" /> : <Music className="m-2.5 h-5 w-5" style={{ color: "#5d7768" }} />}</span><span className="min-w-0"><span className="block truncate text-[15px] font-medium" style={{ color: isActive ? "#1ed760" : "#f1f7f2" }}>{song.title}</span><span className="mt-0.5 block truncate text-xs" style={{ color: "#a6b9ac" }}>{song.artist}</span></span></span>
                     <span className="hidden truncate text-xs sm:block" style={{ color: "#a6b9ac" }}>{song.album || "—"}</span>
                     <span className="text-right text-xs tabular-nums" style={{ color: "#5d7768" }}>{song.duration > 0 ? formatDuration(song.duration) : "—"}</span>
                   </button>

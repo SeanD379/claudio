@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { useTheme } from "./useTheme";
+import { createLoadingId, loadingError, recordLoading, type LoadingError } from "@/app/lib/loading-diagnostics";
 
 // 浏览器自动播放策略：记录用户是否已交互
 let userHasInteracted = false;
@@ -46,6 +47,9 @@ interface PlayerState {
   currentTime: number;
   volume: number;
   isLoading: boolean;
+  playbackError: LoadingError | null;
+  loadingSlow: boolean;
+  requestId: string | null;
   audio: HTMLAudioElement | null;
   beforePlay: ((song: Song) => Promise<void>) | null;
   playMode: PlayMode;
@@ -75,6 +79,8 @@ interface PlayerState {
 let audioElement: HTMLAudioElement | null = null;
 let listenersAttached = false;
 let sleepTimerId: ReturnType<typeof setTimeout> | null = null;
+let activePlayback: { controller: AbortController; cleanup: () => void; wait: () => void; fail: (category: LoadingError) => void;
+  log: (stage: string, result: "start" | "success" | "failure" | "cancelled", errorCategory?: LoadingError) => void } | null = null;
 
 function getAudio(): HTMLAudioElement {
   if (!audioElement) {
@@ -92,6 +98,9 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   currentTime: 0,
   volume: 80,
   isLoading: false,
+  playbackError: null,
+  loadingSlow: false,
+  requestId: null,
   audio: null,
   beforePlay: null,
   playMode: "sequential",
@@ -180,16 +189,6 @@ export const usePlayer = create<PlayerState>((set, get) => ({
         });
       });
 
-      audio.addEventListener("ended", () => {
-        if (useTheme.getState().autoPlay) {
-          get().nextSong();
-        } else {
-          set({ isPlaying: false });
-        }
-      });
-
-      audio.addEventListener("play", () => set({ isPlaying: true }));
-      audio.addEventListener("pause", () => set({ isPlaying: false }));
     }
 
     audio.volume = get().volume / 100;
@@ -199,31 +198,82 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     if (!song) return;
     const audio = getAudio();
     if (!get().audio) get().initAudio();
-
-    // 切歌时暂停当前音乐
-    if (!audio.paused) {
-      audio.pause();
+    if (activePlayback) {
+      activePlayback.controller.abort();
+      activePlayback.cleanup();
+      activePlayback.log("superseded", "cancelled", "cancelled");
     }
-
-    set({ isLoading: true, currentSong: song });
-
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    const start = performance.now();
+    const requestId = createLoadingId();
+    const controller = new AbortController();
+    let slowTimer: ReturnType<typeof setTimeout> | undefined;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    const listeners: Array<[string, EventListener]> = [];
+    const log = (stage: string, result: "start" | "success" | "failure" | "cancelled", errorCategory?: LoadingError) => {
+      recordLoading({ requestId, songId: song.neteaseId, stage, elapsedMs: performance.now() - start, result, errorCategory });
+    };
+    const clearTimers = () => { clearTimeout(slowTimer); clearTimeout(deadline); };
+    const attempt = { controller, log, wait: () => wait(), fail: (category: LoadingError) => fail(category), cleanup: () => {
+      clearTimers();
+      for (const [name, listener] of listeners) audio.removeEventListener(name, listener);
+    } };
+    activePlayback = attempt;
+    const isCurrent = () => activePlayback === attempt && !controller.signal.aborted;
+    const fail = (category: LoadingError) => {
+      if (!isCurrent()) return;
+      log("failure", "failure", category);
+      attempt.cleanup();
+      controller.abort();
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      set({ isPlaying: false, isLoading: false, loadingSlow: false, playbackError: category });
+    };
+    const wait = () => {
+      clearTimers();
+      slowTimer = setTimeout(() => {
+        if (isCurrent() && get().isLoading) { set({ loadingSlow: true }); log("slow", "start"); }
+      }, 3000);
+      deadline = setTimeout(() => fail("timeout"), 15000);
+    };
+    set({ isLoading: true, isPlaying: false, currentSong: song, currentTime: 0, progress: 0,
+      playbackError: null, loadingSlow: false, requestId });
+    log("click", "start");
+    log("feedback-state", "success");
+    let updatedSong = song;
     try {
       const { beforePlay } = get();
       if (beforePlay) {
         const shouldBlock = await beforePlay(song).then(() => false).catch(() => true);
+        if (!isCurrent()) return;
+        log("before-play", shouldBlock ? "cancelled" : "success", shouldBlock ? "precondition" : undefined);
         if (shouldBlock) {
-          set({ isLoading: false });
+          attempt.cleanup();
+          controller.abort();
+          set({ isLoading: false, loadingSlow: false });
           return; // 阻止播放
         }
       }
 
+      wait();
       let audioUrl = song.audioUrl;
-      let updatedSong = song;
-
       if (!audioUrl) {
-        const res = await fetch(`/api/music/song?id=${song.neteaseId}`);
+        log("url-request", "start");
+        const res = await fetch(`/api/music/song?id=${encodeURIComponent(song.neteaseId)}`, {
+          signal: controller.signal, headers: { "X-Request-ID": requestId },
+        });
+        if (!isCurrent()) return;
+        const data = await res.json();
+        if (!isCurrent()) return;
+        if (!res.ok || !data.audioUrl) {
+          const categories: LoadingError[] = ["network", "timeout", "auth", "unavailable", "upstream"];
+          fail(categories.includes(data.errorCategory) ? data.errorCategory : res.status === 401 ? "auth" : "upstream");
+          return;
+        }
         if (res.ok) {
-          const data = await res.json();
           audioUrl = data.audioUrl;
           // 更新歌曲完整信息（封面、时长等）
           if (data.coverUrl || data.duration) {
@@ -243,34 +293,59 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       }
 
       if (!audioUrl) {
-        console.error("No audio URL available for this song");
-        set({ isLoading: false });
+        fail("unavailable");
         return;
       }
-
+      if (!isCurrent()) return;
+      log("url-ready", "success");
+      let firstPlayback = true;
+      const on = (name: string, listener: EventListener) => {
+        const guarded: EventListener = (event) => {
+          if (isCurrent() && audio.src === audioUrl) listener(event);
+        };
+        listeners.push([name, guarded]);
+        audio.addEventListener(name, guarded);
+      };
+      on("playing", () => {
+        if (audio.paused || audio.readyState < 2) return;
+        clearTimers();
+        set({ isPlaying: true, isLoading: false, loadingSlow: false, playbackError: null });
+        log(firstPlayback ? "playing" : "resumed", "success");
+        if (!firstPlayback) return;
+        firstPlayback = false;
+        get().addToHistory(updatedSong);
+        fetch("/api/calendar/record", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ songId: updatedSong.neteaseId, duration: updatedSong.duration,
+            title: updatedSong.title, artist: updatedSong.artist, album: updatedSong.album, coverUrl: updatedSong.coverUrl }),
+        }).catch(() => {});
+      });
+      on("waiting", () => {
+        if (audio.paused) return;
+        set({ isLoading: true, isPlaying: false }); log("buffering", "start"); wait();
+      });
+      on("stalled", () => log("stalled", "start"));
+      on("pause", () => {
+        if (!audio.paused) return;
+        clearTimers(); set({ isPlaying: false, isLoading: false, loadingSlow: false }); log("paused", "success");
+      });
+      on("error", () => { if (audio.error) fail(audio.error.code === 2 ? "network" : "media"); });
+      on("ended", () => {
+        clearTimers(); set({ isPlaying: false, isLoading: false, loadingSlow: false }); log("ended", "success");
+        if (useTheme.getState().autoPlay) get().nextSong();
+      });
       audio.src = audioUrl;
+      // Compare the browser-normalized URL in event guards.
+      audioUrl = audio.src;
+      log("source-set", "success");
+      audio.load();
       if (canAutoPlay()) {
-        await audio.play().catch(() => {});
+        await audio.play();
+      } else {
+        fail("autoplay");
       }
-      set({ isPlaying: true, isLoading: false });
-      // 记录播放历史
-      get().addToHistory(updatedSong);
-      // 记录到日历播放记录
-      fetch("/api/calendar/record", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          songId: updatedSong.neteaseId,
-          duration: updatedSong.duration,
-          title: updatedSong.title,
-          artist: updatedSong.artist,
-          album: updatedSong.album,
-          coverUrl: updatedSong.coverUrl,
-        }),
-      }).catch(() => {});
     } catch (err) {
-      console.error("Failed to play song:", err);
-      set({ isLoading: false });
+      if (isCurrent()) fail(loadingError(err));
     }
   },
 
@@ -283,8 +358,17 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       return;
     }
 
+    if (currentSong && (get().playbackError || !a.src)) {
+      get().playSong(currentSong);
+      return;
+    }
     if (a.paused) {
-      a.play().catch(() => {});
+      const attempt = activePlayback;
+      set({ isLoading: true });
+      attempt?.wait();
+      a.play().catch((error) => {
+        if (activePlayback === attempt && !attempt?.controller.signal.aborted) attempt?.fail(loadingError(error));
+      });
     } else {
       a.pause();
     }

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { CoverImage } from "@/app/components/CoverImage";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePlayer } from "@/hooks/usePlayer";
 import { useTheme } from "@/hooks/useTheme";
@@ -94,12 +94,10 @@ export default function FavoritesPage() {
 
                 <div className="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0" style={{ background: isLight ? "rgba(0,0,0,0.05)" : "var(--surface-elevated)" }}>
                   {song.coverUrl ? (
-                    <Image
+                    <CoverImage size={44} songId={song.neteaseId}
                       src={song.coverUrl}
                       alt={song.title}
-                      fill
-                      className="object-cover"
-                      unoptimized
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">

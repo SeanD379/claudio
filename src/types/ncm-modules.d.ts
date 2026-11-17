@@ -31,3 +31,31 @@ declare module "NeteaseCloudMusicApi/module/playlist_detail" {
   const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
   export default fn;
 }
+declare module "NeteaseCloudMusicApi/module/search" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}
+declare module "NeteaseCloudMusicApi/module/song_url" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}
+declare module "NeteaseCloudMusicApi/module/song_url_v1" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}
+declare module "NeteaseCloudMusicApi/module/song_detail" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}
+declare module "NeteaseCloudMusicApi/module/personalized" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}
+declare module "NeteaseCloudMusicApi/module/recommend_songs" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}
+declare module "NeteaseCloudMusicApi/module/lyric" {
+  const fn: (...args: unknown[]) => Promise<{ body: unknown }>;
+  export default fn;
+}

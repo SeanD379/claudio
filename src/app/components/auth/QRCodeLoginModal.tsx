@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface QRCodeLoginModalProps {
@@ -20,20 +20,25 @@ export function QRCodeLoginModal({
   const [qrKey, setQrKey] = useState<string | null>(null);
   const [status, setStatus] = useState<QRStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const generationController = useRef<AbortController | null>(null);
 
   // 生成二维码
   const generateQRCode = useCallback(async () => {
+    generationController.current?.abort();
+    const controller = new AbortController();
+    generationController.current = controller;
     try {
       setStatus("loading");
       setErrorMessage("");
-      const res = await fetch("/api/netease/login/qrcode?action=generate");
+      setQrImg(null);
+      setQrKey(null);
+      const res = await fetch("/api/netease/login/qrcode?action=generate", { signal: controller.signal });
       const data = await res.json();
+      if (controller.signal.aborted) return;
 
-      if (data.error) {
+      if (!res.ok || data.error || !data.key || !data.qrImg) {
         setStatus("error");
-        setErrorMessage(
-          data.detail ? `${data.error}（${data.detail}）` : data.error
-        );
+        setErrorMessage(data.error || "暂时无法生成二维码，请稍后刷新重试");
         return;
       }
 
@@ -41,6 +46,7 @@ export function QRCodeLoginModal({
       setQrKey(data.key);
       setStatus("ready");
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error("Generate QR code error:", error);
       setStatus("error");
       setErrorMessage("生成二维码失败，请稍后重试");
@@ -49,22 +55,31 @@ export function QRCodeLoginModal({
 
   // 轮询检查登录状态
   useEffect(() => {
-    if (!isOpen || !qrKey || status === "expired" || status === "error" || status === "success") {
+    if (!isOpen || !qrKey || (status !== "ready" && status !== "scanned")) {
       return;
     }
 
     let isCleaningUp = false;
+    let isChecking = false;
+    const controller = new AbortController();
 
     const checkInterval = setInterval(async () => {
-      if (isCleaningUp) return;
+      if (isCleaningUp || isChecking) return;
+      isChecking = true;
 
       try {
         const res = await fetch(
-          `/api/netease/login/qrcode?action=check&key=${encodeURIComponent(qrKey)}`
+          `/api/netease/login/qrcode?action=check&key=${encodeURIComponent(qrKey)}`,
+          { signal: controller.signal }
         );
         const data = await res.json();
+        if (isCleaningUp) return;
+        if (!res.ok) {
+          setErrorMessage(data.error || "连接暂时中断，正在重试");
+          return;
+        }
+        setErrorMessage("");
 
-        console.log("QR check response:", data);
         switch (data.code) {
           case 800:
             // 二维码过期
@@ -93,12 +108,17 @@ export function QRCodeLoginModal({
             break;
         }
       } catch (error) {
+        if (isCleaningUp) return;
+        setErrorMessage("连接暂时中断，正在重试");
         console.error("Check QR status error:", error);
+      } finally {
+        isChecking = false;
       }
     }, 1000); // 缩短轮询间隔到1秒，提高响应速度
 
     return () => {
       isCleaningUp = true;
+      controller.abort();
       clearInterval(checkInterval);
     };
   }, [isOpen, qrKey, status, onLoginSuccess, onClose]);
@@ -106,14 +126,10 @@ export function QRCodeLoginModal({
   // 打开弹窗时生成二维码，同时重置状态
   useEffect(() => {
     if (isOpen) {
-      // 重置所有状态
-      setStatus("loading");
-      setQrImg(null);
-      setQrKey(null);
-      setErrorMessage("");
       // 生成新的二维码
       generateQRCode();
     }
+    return () => generationController.current?.abort();
   }, [isOpen, generateQRCode]);
 
   // 刷新二维码
@@ -282,11 +298,11 @@ export function QRCodeLoginModal({
                 <p className="text-gray-500">正在生成二维码...</p>
               )}
               {status === "ready" && (
-                <p className="text-gray-600">请使用网易云音乐 APP 扫描二维码</p>
+                <p className="text-gray-600">{errorMessage || "请使用网易云音乐 APP 扫描二维码"}</p>
               )}
               {status === "scanned" && (
                 <p className="text-green-600 font-medium">
-                  已扫描，请在手机上确认登录
+                  {errorMessage || "已扫描，请在手机上确认登录"}
                 </p>
               )}
               {status === "expired" && (
@@ -296,7 +312,7 @@ export function QRCodeLoginModal({
               )}
               {status === "error" && (
                 <div className="flex items-center justify-center gap-3">
-                  <p className="text-red-600 font-medium break-all max-w-[220px]">
+                  <p className="text-red-600 font-medium break-all max-w-[220px]" role="alert">
                     {errorMessage}
                   </p>
                   <button

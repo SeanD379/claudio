@@ -1,5 +1,8 @@
 "use client";
 
+import { CoverImage } from "@/app/components/CoverImage";
+
+
 import { useEffect, useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,6 +17,7 @@ import {
   Heart,
   Loader2,
 } from "lucide-react";
+import { coverImageUrl } from "@/app/lib/cover-image";
 import { usePlayer } from "@/hooks/usePlayer";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -85,6 +89,7 @@ const ProgressBar = memo(function ProgressBar() {
 const PlayControls = memo(function PlayControls() {
   const isPlaying = usePlayer((s) => s.isPlaying);
   const isLoading = usePlayer((s) => s.isLoading);
+  const playbackError = usePlayer((s) => s.playbackError);
   const playMode = usePlayer((s) => s.playMode);
   const volume = usePlayer((s) => s.volume);
   const togglePlay = usePlayer((s) => s.togglePlay);
@@ -115,6 +120,7 @@ const PlayControls = memo(function PlayControls() {
         <button
           onClick={togglePlay}
           disabled={isLoading}
+          aria-label={isLoading ? "正在加载" : playbackError ? "重试播放" : isPlaying ? "暂停" : "播放"}
           className="w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-50"
           style={{ backgroundColor: "var(--accent)", color: "var(--text-on-accent)", boxShadow: `0 2px 12px var(--accent-glow)` }}
         >
@@ -159,6 +165,9 @@ const PlayControls = memo(function PlayControls() {
 
 export function Player() {
   const currentSong = usePlayer((s) => s.currentSong);
+  const playbackError = usePlayer((s) => s.playbackError);
+  const isLoading = usePlayer((s) => s.isLoading);
+  const loadingSlow = usePlayer((s) => s.loadingSlow);
   const initAudio = usePlayer((s) => s.initAudio);
   const fetchFavorites = useFavorites((s) => s.fetchFavorites);
   const favorites = useFavorites((s) => s.favorites);
@@ -191,7 +200,8 @@ export function Player() {
     let cancelled = false;
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = currentSong.coverUrl;
+    img.fetchPriority = "low";
+    img.src = coverImageUrl(currentSong.coverUrl, 32);
     img.onload = () => {
       if (cancelled) return;
       try {
@@ -218,6 +228,14 @@ export function Player() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
+      <p role="status" aria-live="polite" className="text-xs text-text-secondary text-center min-h-4 mb-1">
+        {playbackError ? ({
+          network: "网络连接失败，请点击播放重试", timeout: "加载超时，请重试或切换歌曲",
+          auth: "登录已失效，请重新登录网易云", unavailable: "这首歌暂时不可播放，请切换歌曲",
+          upstream: "音乐服务暂时不可用，请稍后重试", autoplay: "请点击播放开始收听",
+          media: "音频加载失败，请重试或切换歌曲", cancelled: "", precondition: "",
+        })[playbackError] : isLoading ? loadingSlow ? "加载较慢，你可以继续等待或切换歌曲" : "正在加载…" : ""}
+      </p>
       {/* 播放器主体 — 玻璃羽化 */}
       <div
         className="rounded-2xl px-5 py-3.5 relative overflow-hidden"
@@ -250,7 +268,7 @@ export function Player() {
               style={{ boxShadow: `0 2px 12px ${coverGlow}` }}
             >
               {currentSong?.coverUrl ? (
-                <img src={currentSong.coverUrl} alt={currentSong.title} className="w-full h-full object-cover" />
+                <CoverImage size={48} priority songId={currentSong.neteaseId} src={currentSong.coverUrl} alt={currentSong.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-surface-elevated flex items-center justify-center">
                   <div className="w-5 h-5 rounded-full border border-text-muted flex items-center justify-center">

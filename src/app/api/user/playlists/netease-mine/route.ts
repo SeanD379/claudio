@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/lib/db";
 import { getUserProfile, getValidCookie } from "@/app/lib/ncm-auth";
 
+export const dynamic = "force-dynamic";
+
 // 服务器端存储不可用时的登录态兜底：浏览器会话 Cookie
 function getSessionFallback(request: NextRequest): string | undefined {
   return request.cookies.get("nc_netease_session")?.value;
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 获取用户信息
-    const profile = await getUserProfile(fallbackCookie);
+    const profile = await getUserProfile(cookie);
     if (!profile) {
       return NextResponse.json(
         { error: "未登录网易云账号" },
@@ -53,7 +55,11 @@ export async function GET(request: NextRequest) {
     };
 
     if (data.code !== 200 || !data.playlist) {
-      return NextResponse.json({ playlists: [] });
+      const loginExpired = data.code === 301 || data.code === 401;
+      return NextResponse.json(
+        { error: loginExpired ? "未登录网易云账号" : "网易云歌单服务暂时不可用，请稍后重试" },
+        { status: loginExpired ? 401 : 502, headers: { "Cache-Control": "private, no-store" } }
+      );
     }
 
     // 查询已导入的歌单 neteaseId（数据库不可达时跳过导入标记）
@@ -82,12 +88,14 @@ export async function GET(request: NextRequest) {
       isMine: p.creator?.nickname === profile.nickname,
     }));
 
-    return NextResponse.json({ playlists });
+    return NextResponse.json({ playlists }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Get netease playlists error:", error);
+    const code = (error as { body?: { code?: number } } | null)?.body?.code;
+    const loginExpired = code === 301 || code === 401;
     return NextResponse.json(
-      { error: "获取歌单列表失败" },
-      { status: 500 }
+      { error: loginExpired ? "未登录网易云账号" : "网易云服务暂时不可用，请稍后重试" },
+      { status: loginExpired ? 401 : 502, headers: { "Cache-Control": "private, no-store" } }
     );
   }
 }

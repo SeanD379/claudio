@@ -1,3 +1,5 @@
+import { coverImageUrl } from "./cover-image";
+
 // 从专辑封面提取主色调
 
 export interface ExtractedColors {
@@ -91,6 +93,7 @@ export async function extractColorsFromImage(imageUrl: string): Promise<Extracte
       resolve(DEFAULT_COLORS);
     };
 
-    img.src = imageUrl;
+    img.fetchPriority = "low";
+    img.src = coverImageUrl(imageUrl, 32);
   });
 }

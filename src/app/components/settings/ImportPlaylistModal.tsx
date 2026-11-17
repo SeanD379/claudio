@@ -1,5 +1,8 @@
 "use client";
 
+import { CoverImage } from "@/app/components/CoverImage";
+
+
 import { useEffect, useState } from "react";
 import { X, Music, Check, Loader2, Link, Search, User } from "lucide-react";
 import {
@@ -9,6 +12,7 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import NeteaseQrLogin from "./NeteaseQrLogin";
 import { useAuthContext } from "@/app/components/auth/AuthProvider";
+import { importSelectedPlaylists } from "@/app/lib/playlist-import";
 
 interface Props {
   isOpen: boolean;
@@ -59,9 +63,15 @@ export default function ImportPlaylistModal({ isOpen, onClose }: Props) {
             const data = await res.json();
             setNeteasePlaylists(data.playlists || []);
             setNeedsLogin(false);
+          } else {
+            const data = await res.json();
+            throw new Error(data.error || "获取歌单失败，请稍后重试");
           }
         })
-        .catch(() => { setNeteasePlaylists([]); })
+        .catch((err) => {
+          setNeteasePlaylists([]);
+          setError(err instanceof Error ? err.message : "获取歌单失败，请稍后重试");
+        })
         .finally(() => { setFetching(false); });
     }
   }, [isOpen, tab, fetchImportable]);
@@ -69,17 +79,30 @@ export default function ImportPlaylistModal({ isOpen, onClose }: Props) {
   if (!isOpen) return null;
 
   const handleLoginSuccess = async () => {
+    setError("");
+    setNeedsLogin(false);
     await checkAuth();
     setFetching(true);
     fetch("/api/user/playlists/netease-mine")
       .then(async (res) => {
+        if (res.status === 401) {
+          setNeedsLogin(true);
+          setNeteasePlaylists([]);
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           setNeteasePlaylists(data.playlists || []);
           setNeedsLogin(false);
+        } else {
+          const data = await res.json();
+          throw new Error(data.error || "获取歌单失败，请稍后重试");
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        setNeteasePlaylists([]);
+        setError(err instanceof Error ? err.message : "获取歌单失败，请稍后重试");
+      })
       .finally(() => { setFetching(false); });
   };
 
@@ -108,16 +131,15 @@ export default function ImportPlaylistModal({ isOpen, onClose }: Props) {
   const handleImportSelectedNetease = async () => {
     if (selected.size === 0) return;
     setLoading(true);
-    try {
-      for (const id of selected) {
-        await importFromNetease(id.toString());
-      }
-      onClose();
-    } catch {
-      // error handled silently — user can retry
-    } finally {
-      setLoading(false);
-    }
+    setError("");
+    const result = await importSelectedPlaylists(selected, importFromNetease);
+    setSelected(new Set(result.failedIds));
+    setNeteasePlaylists((previous) => previous.map((playlist) =>
+      result.completedIds.includes(playlist.playlistId) ? { ...playlist, imported: true } : playlist
+    ));
+    setLoading(false);
+    setError(result.error);
+    if (result.failedIds.length === 0) onClose();
   };
 
   const handleImportFromUrl = async () => {
@@ -185,7 +207,7 @@ export default function ImportPlaylistModal({ isOpen, onClose }: Props) {
           </div>
         )}
         {pl.coverUrl && (
-          <img
+          <CoverImage size={40}
             src={pl.coverUrl}
             alt=""
             className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
@@ -251,10 +273,18 @@ export default function ImportPlaylistModal({ isOpen, onClose }: Props) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
+          {tab === "mine" && error && neteasePlaylists.length > 0 && (
+            <p className="text-sm mb-4 text-red-400" role="alert">{error}</p>
+          )}
           {tab === "mine" ? (
             fetching ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-text-muted" />
+              </div>
+            ) : error && neteasePlaylists.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm mb-4 text-red-400" role="alert">{error}</p>
+                <button type="button" onClick={handleLoginSuccess} className="text-sm text-text-primary">重试</button>
               </div>
             ) : needsLogin ? (
               <div className="py-4">

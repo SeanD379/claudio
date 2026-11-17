@@ -4,8 +4,25 @@
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import { resolve } from "path";
+import { compactNcmCookie } from "./ncm-session";
+import { prepareNcmRuntime, isNetlifyRuntime as isNetlify } from "./ncm-runtime";
 
 const COOKIE_FILE = resolve(process.cwd(), ".netease-cookie.json");
+
+// 只对读取类请求的临时连接故障重试一次，鉴权错误及模块错误不重试。
+async function retryNcmRead<T>(read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    const failure = error as { code?: string; body?: { code?: number } } | null;
+    const temporary = [502, 503, 504].includes(failure?.body?.code || 0)
+      || ["ECONNRESET", "ETIMEDOUT", "ECONNABORTED", "ENOTFOUND", "EAI_AGAIN"].includes(failure?.code || "");
+    if (!temporary) throw error;
+    console.warn("[Auth] 临时连接失败，重试一次", { code: failure?.code, upstreamCode: failure?.body?.code });
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return read();
+  }
+}
 
 /**
  * 按需加载 NeteaseCloudMusicApi 的具体模块。
@@ -15,17 +32,7 @@ const COOKIE_FILE = resolve(process.cwd(), ".netease-cookie.json");
  */
 async function loadNcm() {
   try {
-    const [fsMod, osMod, pathMod] = await Promise.all([
-      import("fs"),
-      import("os"),
-      import("path"),
-    ]);
-    // request.js 加载时会同步读取 tmpdir 下的 anonymous_token，
-    // Netlify 全新环境中不存在该文件，需先创建
-    const tokenPath = pathMod.default.resolve(osMod.tmpdir(), "./anonymous_token");
-    if (!fsMod.default.existsSync(tokenPath)) {
-      fsMod.default.writeFileSync(tokenPath, "", "utf-8");
-    }
+    prepareNcmRuntime();
 
     const [qrKey, qrCreate, qrCheck, account, logoutMod, requestMod] =
       await Promise.all([
@@ -46,10 +53,23 @@ async function loadNcm() {
       (query: Record<string, unknown>) =>
         fn(query, request);
     return {
-      login_qr_key: wrap(qrKey.default ?? qrKey),
+      login_qr_key: (query: Record<string, unknown>) => retryNcmRead(() => wrap(qrKey.default ?? qrKey)(query)),
       login_qr_create: wrap(qrCreate.default ?? qrCreate),
-      login_qr_check: wrap(qrCheck.default ?? qrCheck),
-      user_account: wrap(account.default ?? account),
+      // SDK 的 QR 模块在 request 抛错时会引用未定义的 result。
+      // 把传输失败转换为明确的失败响应，避免被误报成二维码过期。
+      login_qr_check: (query: Record<string, unknown>) => (qrCheck.default ?? qrCheck)(query, async (...args: unknown[]) => {
+        try {
+          return await request(...args);
+        } catch (error) {
+          const code = (error as { body?: { code?: number } } | null)?.body?.code;
+          console.warn("[Auth] QR 状态请求失败", { code });
+          return {
+            body: { code: code && code >= 800 && code <= 802 ? code : 502, message: "暂时无法连接网易云音乐，正在重试" },
+            cookie: [],
+          };
+        }
+      }),
+      user_account: (query: Record<string, unknown>) => retryNcmRead(() => wrap(account.default ?? account)(query)),
       ncmLogout: wrap(logoutMod.default ?? logoutMod),
     };
   } catch (e) {
@@ -59,9 +79,6 @@ async function loadNcm() {
   }
 }
 
-function isNetlify(): boolean {
-  return !!process.env.NETLIFY;
-}
 
 // ============ 类型 ============
 
@@ -183,13 +200,21 @@ export async function loadCookie(): Promise<CookieData | null> {
 
 export async function deleteCookie(): Promise<void> {
   cached = null;
-  if (isNetlify()) await deleteFromDb();
-  else deleteFile();
+  delete (globalThis as { __ncmCookieCache?: CookieData }).__ncmCookieCache;
+  if (isNetlify()) {
+    try {
+      await deleteFromDb();
+    } catch {
+      console.warn("[Auth] 数据库不可达，已清除当前实例登录态");
+    }
+  } else deleteFile();
 }
 
 export async function getValidCookie(fallback?: string): Promise<string | null> {
+  // 当前浏览器刚扫码的凭证优先，不能被其他实例/旧数据库记录覆盖。
+  if (fallback) return fallback;
   const data = await loadCookie();
-  return data?.cookie || fallback || null;
+  return data?.cookie || null;
 }
 
 export async function hasCookie(fallback?: string): Promise<boolean> {
@@ -251,16 +276,28 @@ export async function checkQrStatus(uniKey: string): Promise<{
     const { login_qr_check } = await loadNcm();
     const res = await login_qr_check({ key: uniKey });
     const body = res.body as { code?: number; message?: string; cookie?: string };
-    const code = body?.code || 800;
+    const code = body?.code;
+    if (!code || ![800, 801, 802, 803].includes(code)) {
+      return { status: 502, message: "暂时无法连接网易云音乐，正在重试" };
+    }
+
+    if (code === 803 && !body.cookie) {
+      return { status: 502, message: "扫码已确认，但未取得登录凭证，请重新扫码" };
+    }
 
     // 803 = 登录成功，保存 Cookie。
     // 注意：保存失败绝不能影响登录成功的结果，这里单独隔离错误
     if (code === 803 && body.cookie) {
+      const cookie = compactNcmCookie(body.cookie);
       let profile: { userId: number; nickname: string; avatarUrl: string } | null = null;
       try {
-        profile = await fetchProfile(body.cookie);
+        profile = await fetchProfile(cookie);
+      } catch {
+        // 资料接口暂时不可达时仍保存凭证，后续请求可重试。
+      }
+      try {
         await saveCookie({
-          cookie: body.cookie,
+          cookie,
           userId: profile?.userId || 0,
           nickname: profile?.nickname || "",
           avatarUrl: profile?.avatarUrl || "",
@@ -269,7 +306,7 @@ export async function checkQrStatus(uniKey: string): Promise<{
       } catch (saveErr) {
         console.error("[Auth] 登录成功但保存 Cookie 失败（登录结果不受影响）:", saveErr);
       }
-      return { status: 803, profile, cookie: body.cookie };
+      return { status: 803, profile, cookie };
     }
 
     return { status: code, message: body?.message };
@@ -277,7 +314,7 @@ export async function checkQrStatus(uniKey: string): Promise<{
     // 模块函数在非 200 状态时会抛出含 body 的错误对象
     const errBody = (e as { body?: { code?: number; message?: string } }).body;
     console.error("[Auth] 检查 QR 状态异常:", errBody ?? e);
-    return { status: errBody?.code || 800, message: errBody?.message || "检查失败" };
+    return { status: 502, message: "暂时无法连接网易云音乐，请稍后重试" };
   }
 }
 
@@ -296,11 +333,13 @@ async function fetchProfile(cookie: string): Promise<{
       profile?: { userId: number; nickname: string; avatarUrl: string };
     };
     if (body?.code === 200 && body.profile) return body.profile;
-    return null;
+    if (body?.code === 200 || body?.code === 301 || body?.code === 401) return null;
+    throw new Error("网易云资料服务暂时不可用，请稍后重试");
   } catch (e) {
-    const errBody = (e as { body?: unknown }).body;
-    console.error("[Auth] 获取用户资料异常:", errBody ?? e);
-    return null;
+    const code = (e as { body?: { code?: number } }).body?.code;
+    if (code === 301 || code === 401) return null;
+    console.warn("[Auth] 获取用户资料失败", { code });
+    throw new Error("网易云资料服务暂时不可用，请稍后重试");
   }
 }
 
@@ -312,10 +351,6 @@ export async function getUserProfile(fallback?: string): Promise<{
   const cookie = await getValidCookie(fallback);
   if (!cookie) return null;
   const profile = await fetchProfile(cookie);
-  if (!profile) {
-    await deleteCookie();
-    return null;
-  }
   return profile;
 }
 
